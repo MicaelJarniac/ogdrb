@@ -1010,7 +1010,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
-    { name = "opengd77", specifier = ">=0.2.0" },
+    { name = "opengd77", specifier = ">=0.2.1" },
     { name = "repeaterbook", specifier = ">=0.2.1" },
 ]
 
@@ -1070,15 +1070,15 @@ typing = [
 
 [[package]]
 name = "opengd77"
-version = "0.2.0"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
     { name = "loguru" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/d0/83f7ec7bc8a937b66fcf46d0809d3942f1897abda897a50d91e4d4aa3210/opengd77-0.2.0.tar.gz", hash = "sha256:68932ace4a1a1ea8781a841e9f9e4460435d110ddc8542a02b4bf603ff25656a", size = 110716 }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/3a/674c52e6c6a6605808b1c91029183632e5a365cad2d90c69998d82373c3e/opengd77-0.2.1.tar.gz", hash = "sha256:8025b28c0ac9e156cf1814349ff94c19f056564c97ed5204a235cf93997f7693", size = 110934 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/3c/d2c8e4b9d2e5a2861cec16a5740c238b1eb30fb3f669a76e7c9989e37ef7/opengd77-0.2.0-py3-none-any.whl", hash = "sha256:4b2563d27d3bdadd7f675ee0e1635c10f4219efe4d1d53599691790c03cd2807", size = 11466 },
+    { url = "https://files.pythonhosted.org/packages/d5/28/03538135b6f20fe1b986cadc10bba951c3c1d9755a7f0b89292ffe5deb39/opengd77-0.2.1-py3-none-any.whl", hash = "sha256:5a405901c0a33ee76f60dbf5d2a81142c14020095d628ebaa36d28ac3f19f17b", size = 11546 },
 ]
 
 [[package]]

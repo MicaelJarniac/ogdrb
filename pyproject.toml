@@ -21,7 +21,7 @@ classifiers = [
 requires-python = ">=3.13"  # py_ver
 dependencies = [
     "loguru>=0.7.3",
-    "opengd77>=0.2.0",
+    "opengd77>=0.2.1",
     "repeaterbook>=0.2.1",
 ]
 
