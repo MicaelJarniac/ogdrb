@@ -2,38 +2,32 @@
 
 from __future__ import annotations
 
-__all__: tuple[str, ...] = ()
+__all__: tuple[str, ...] = (
+    "make_name",
+    "repeater_to_channels",
+)
 
 
-import unicodedata
 from decimal import Decimal
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from opengd77.constants import Max
 from opengd77.models import (
     AnalogChannel,
     Bandwidth,
-    Codeplug,
     DigitalChannel,
     TalkerAlias,
-    Zone,
 )
-from repeaterbook.models import Repeater
 
-from ogdrb.utils import MakeUnique
+from ogdrb.utils import normalize_string
+
+if TYPE_CHECKING:  # pragma: no cover
+    from repeaterbook.models import Repeater
 
 BANDWIDTH: Final[dict[Decimal, Bandwidth]] = {
     Decimal("12.5"): Bandwidth.BW_12_5KHZ,
     Decimal("25.0"): Bandwidth.BW_25KHZ,
 }
-
-
-def normalize_string(input_str: str) -> str:
-    return (
-        unicodedata.normalize("NFKD", input_str)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-    )
 
 
 def make_name(*, callsign: str | None, city: str, digital: bool) -> str:
@@ -45,7 +39,9 @@ def make_name(*, callsign: str | None, city: str, digital: bool) -> str:
     )[: Max.CHARS_CHANNEL_NAME]
 
 
-def rb_to_ogd(repeater: Repeater) -> tuple[AnalogChannel | None, DigitalChannel | None]:
+def repeater_to_channels(
+    repeater: Repeater,
+) -> tuple[AnalogChannel | None, DigitalChannel | None]:
     """Convert a RepeaterBook repeater to OpenGD77 channels."""
     analog: AnalogChannel | None = None
     digital: DigitalChannel | None = None
@@ -88,41 +84,3 @@ def rb_to_ogd(repeater: Repeater) -> tuple[AnalogChannel | None, DigitalChannel 
         )
 
     return analog, digital
-
-
-def repeaters_to_codeplug(repeaters: list[Repeater]) -> Codeplug:
-    """Convert a list of Repeaters to a Codeplug."""
-    channels: list[AnalogChannel | DigitalChannel] = []
-
-    for repeater in repeaters:
-        analog, digital = rb_to_ogd(repeater)
-        if analog:
-            channels.append(analog)
-        if digital:
-            channels.append(digital)
-
-    # If there are multiple channels with the exact same name, append a number
-    # to all of them to make them unique
-    make_unique = MakeUnique(
-        (channel.name for channel in channels), max_length=Max.CHARS_CHANNEL_NAME
-    )
-    for channel in channels:
-        channel.name = make_unique(channel.name)
-
-    zone_digital = Zone(
-        name="Digital",
-        channels=[
-            channel for channel in channels if isinstance(channel, DigitalChannel)
-        ][: Max.CHANNELS_PER_ZONE],
-    )
-    zone_analog = Zone(
-        name="Analog",
-        channels=[
-            channel for channel in channels if isinstance(channel, AnalogChannel)
-        ][: Max.CHANNELS_PER_ZONE],
-    )
-
-    return Codeplug(
-        channels=channels[: Max.CHANNELS],
-        zones=[zone_digital, zone_analog],
-    )

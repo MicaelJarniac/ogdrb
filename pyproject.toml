@@ -20,9 +20,14 @@ classifiers = [
 
 requires-python = ">=3.13"  # py_ver
 dependencies = [
+    "anyio>=4.9.0",
+    "attrs>=25.3.0",
+    "haversine>=2.9.0",
     "loguru>=0.7.3",
     "opengd77>=0.2.1",
+    "pycountry>=24.6.1",
     "repeaterbook>=0.2.1",
+    "sqlmodel>=0.0.24",
 ]
 
 [build-system]

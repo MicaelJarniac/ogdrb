@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
-__all__: tuple[str, ...] = ("MakeUnique",)
+__all__: tuple[str, ...] = (
+    "MakeUnique",
+    "normalize_string",
+)
 
+import unicodedata
 from collections import Counter, defaultdict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
+
+
+def normalize_string(input_str: str) -> str:
+    """Normalize a string by removing accents and converting to ASCII."""
+    return (
+        unicodedata.normalize("NFKD", input_str)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
 
 
 class MakeUnique:

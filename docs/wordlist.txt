@@ -2,6 +2,7 @@ addopts
 autosummary
 callsign
 celerybeat
+Codeplug
 Connor
 crustypy
 Cython

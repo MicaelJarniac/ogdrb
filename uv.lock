@@ -942,9 +942,14 @@ name = "ogdrb"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
+    { name = "attrs" },
+    { name = "haversine" },
     { name = "loguru" },
     { name = "opengd77" },
+    { name = "pycountry" },
     { name = "repeaterbook" },
+    { name = "sqlmodel" },
 ]
 
 [package.dev-dependencies]
@@ -1009,9 +1014,14 @@ typing = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.9.0" },
+    { name = "attrs", specifier = ">=25.3.0" },
+    { name = "haversine", specifier = ">=2.9.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "opengd77", specifier = ">=0.2.1" },
+    { name = "pycountry", specifier = ">=24.6.1" },
     { name = "repeaterbook", specifier = ">=0.2.1" },
+    { name = "sqlmodel", specifier = ">=0.0.24" },
 ]
 
 [package.metadata.requires-dev]
