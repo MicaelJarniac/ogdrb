@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.1.0 (2025-04-16)
+
+### Features
+
+- Initial release
+  ([`bc19f21`](https://github.com/MicaelJarniac/ogdrb/commit/bc19f21529486449006a653b4c8dbdd552362382))
+
+
 ## v0.0.1 (2025-04-09)
 
 ### Bug Fixes
