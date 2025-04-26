@@ -2,6 +2,7 @@ addopts
 autosummary
 callsign
 celerybeat
+circlemarker
 Codeplug
 Connor
 crustypy
@@ -21,6 +22,7 @@ loguru
 mkdocs
 modindex
 mypy
+nicegui
 nosetests
 noxfile
 ogdrb
