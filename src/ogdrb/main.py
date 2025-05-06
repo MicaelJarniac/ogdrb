@@ -6,7 +6,14 @@ __all__: tuple[str, ...] = ()
 
 from typing import TYPE_CHECKING, TypedDict
 
+import pycountry
+from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
+from repeaterbook.models import ExportQuery
+from repeaterbook.utils import LatLon, Radius
+
+from ogdrb.organizer import organize
+from ogdrb.services import get_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.events import GenericEventArguments
@@ -32,10 +39,45 @@ class ZoneRow(TypedDict):
 
 
 @ui.page("/")
-async def index() -> None:
+async def index() -> None:  # noqa: C901, PLR0915
     rows: list[ZoneRow] = []
 
-    circles_to_zones: dict[int, int] = {}
+    async def export() -> None:
+        countries = {
+            pycountry.countries.lookup(country) for country in select_country.value
+        }
+        if not countries:
+            ui.notify("Please select at least one country")
+            return
+        if not rows:
+            ui.notify("Please add at least one zone")
+            return
+        repeaters_by_zone = await get_repeaters(
+            export=ExportQuery(countries=frozenset(countries)),
+            zones={
+                row["name"]: Radius(
+                    origin=LatLon(row["lat"], row["lng"]),
+                    distance=row["radius"],
+                    unit=Unit.KILOMETERS,
+                )
+                for row in rows
+            },
+        )
+        codeplug = organize(repeaters_by_zone)
+        ui.notify(codeplug)
+
+    with ui.header():
+        ui.label("OGDRB").classes("text-2xl")
+        select_country = ui.select(
+            label="Select country",
+            multiple=True,
+            clearable=True,
+            options={country.alpha_2: country.name for country in pycountry.countries},
+        ).classes("w-1/3")
+        ui.button("Export", on_click=export).props("icon=save")
+
+    with ui.footer():
+        ui.label("OGDRB").classes("text-sm")
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
@@ -94,12 +136,12 @@ async def index() -> None:
             timeout=1.0,
         )
 
+    circles_to_zones: dict[int, int] = {}
+
     async def sync_circles() -> None:
-        """Sync circles with the map."""
         await delete_all_circles()
         circles_to_zones.clear()
-        selected = await aggrid.get_selected_rows()
-        selected_ids = [row["id"] for row in selected]
+        selected_ids = [row["id"] for row in await aggrid.get_selected_rows()]
         for row in rows:
             circles_to_zones[
                 await add_circle(
@@ -139,10 +181,8 @@ async def index() -> None:
                 continue
             row = next((row for row in rows if row["id"] == row_id), None)
             if row:
-                ui.notify(row)
                 center = layer["_latlng"]
                 radius = layer["_mRadius"]
-                ui.notify(radius)
                 row["lat"] = center["lat"]
                 row["lng"] = center["lng"]
                 row["radius"] = radius / 1000
@@ -174,13 +214,11 @@ async def index() -> None:
 
     async def add_row() -> None:
         rows.append(ZoneRow(id=new_id(), name="New Zone", lat=0.0, lng=0.0, radius=1.0))
-        ui.notify("Added row")
         aggrid.update()
         await sync_circles()
 
     async def handle_cell_value_change(e: GenericEventArguments) -> None:
         new_row: ZoneRow = e.args["data"]
-        ui.notify(f"Updated row to: {e.args['data']}")
         rows[:] = [row | new_row if row["id"] == new_row["id"] else row for row in rows]
         aggrid.update()
         await sync_circles()
@@ -188,7 +226,6 @@ async def index() -> None:
     async def delete_selected() -> None:
         selected_names = [row["id"] for row in await aggrid.get_selected_rows()]
         rows[:] = [row for row in rows if row["id"] not in selected_names]
-        ui.notify(f"Deleted row with ID {selected_names}")
         aggrid.update()
         await sync_circles()
 
@@ -215,8 +252,16 @@ async def index() -> None:
     aggrid.on("cellValueChanged", handle_cell_value_change)
     aggrid.on("rowSelected", sync_circles)
 
-    ui.button("Delete selected zones", on_click=delete_selected)
-    ui.button("New zone", on_click=add_row)
+    with ui.row():
+        ui.button("New zone", on_click=add_row).props(
+            "icon=add color=green",
+        )
+        ui.button("Delete selected zones", on_click=delete_selected).props(
+            "icon=delete color=red",
+        )
+
+    await m.initialized()
+    await sync_circles()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
