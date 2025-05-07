@@ -74,7 +74,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.footer():
         ui.label("OGDRB").classes("text-sm")
         ui.label(
-            "This app is not affiliated with OpenGD77 or Repeaterbook.",
+            "This app is not affiliated with OpenGD77 or RepeaterBook.",
         ).classes("text-sm")
 
     # Leaflet map with circle-only draw toolbar
