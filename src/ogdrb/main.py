@@ -19,15 +19,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from nicegui.events import GenericEventArguments
 
 
-class Circle(TypedDict):
-    """Circle class for Leaflet map."""
-
-    id: int
-    lat: float
-    lng: float
-    radius: float
-
-
 class ZoneRow(TypedDict):
     """ZoneRow class for AG Grid."""
 
@@ -66,10 +57,14 @@ async def index() -> None:  # noqa: C901, PLR0915
         codeplug = organize(repeaters_by_zone)
         ui.notify(codeplug)
 
+    with ui.left_drawer() as drawer:
+        pass
+
     with ui.header():
+        ui.button(icon="menu", on_click=drawer.toggle)
         ui.label("OGDRB").classes("text-2xl")
         select_country = ui.select(
-            label="Select country",
+            label="Select countries",
             multiple=True,
             clearable=True,
             options={country.alpha_2: country.name for country in pycountry.countries},
@@ -78,6 +73,9 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     with ui.footer():
         ui.label("OGDRB").classes("text-sm")
+        ui.label(
+            "This app is not affiliated with OpenGD77 or Repeaterbook.",
+        ).classes("text-sm")
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
