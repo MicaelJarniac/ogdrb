@@ -15,8 +15,9 @@ from repeaterbook import Repeater, RepeaterBook, queries
 from repeaterbook.models import ExportQuery, Status, Use
 from repeaterbook.queries import Bands
 from repeaterbook.services import RepeaterBookAPI
+from sqlmodel import or_
 
-from ogdrb.converters import repeater_to_channels
+from ogdrb.converters import BANDWIDTH, repeater_to_channels
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Self
@@ -73,6 +74,7 @@ async def get_repeaters(
                     Repeater.operational_status == Status.ON_AIR,
                     Repeater.use_membership == Use.OPEN,
                     queries.band(Bands.M_2, Bands.CM_70),
+                    or_(*(Repeater.fm_bandwidth == bw for bw in BANDWIDTH)),
                 ),
                 radius,
             )
