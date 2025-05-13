@@ -1164,7 +1164,7 @@ requires-dist = [
     { name = "haversine", specifier = ">=2.9.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "nicegui", specifier = ">=2.15.0" },
-    { name = "opengd77", specifier = ">=0.2.1" },
+    { name = "opengd77", specifier = ">=0.3.0" },
     { name = "pycountry", specifier = ">=24.6.1" },
     { name = "repeaterbook", specifier = ">=0.2.1" },
     { name = "sqlmodel", specifier = ">=0.0.24" },
@@ -1226,15 +1226,15 @@ typing = [
 
 [[package]]
 name = "opengd77"
-version = "0.2.1"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
     { name = "loguru" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/3a/674c52e6c6a6605808b1c91029183632e5a365cad2d90c69998d82373c3e/opengd77-0.2.1.tar.gz", hash = "sha256:8025b28c0ac9e156cf1814349ff94c19f056564c97ed5204a235cf93997f7693", size = 110934 }
+sdist = { url = "https://files.pythonhosted.org/packages/87/59/523ddd116eca252b818fe5a6d053895699b285aa8cec6edeaa84383640ba/opengd77-0.3.0.tar.gz", hash = "sha256:e803e1fd5ab16e50f4bf0b9920bbae299c8d783c76246bd3452c16a83b6f0bb8", size = 118246 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/28/03538135b6f20fe1b986cadc10bba951c3c1d9755a7f0b89292ffe5deb39/opengd77-0.2.1-py3-none-any.whl", hash = "sha256:5a405901c0a33ee76f60dbf5d2a81142c14020095d628ebaa36d28ac3f19f17b", size = 11546 },
+    { url = "https://files.pythonhosted.org/packages/5e/f2/a6807c4dbd2601ccae6afa4b291309a8506a923cac6b3393dda12f66349c/opengd77-0.3.0-py3-none-any.whl", hash = "sha256:5ce1864b1cc4224bf6beafcc7e8bd6d276b94e49cd451c286d079b09fb8c58f9", size = 11645 },
 ]
 
 [[package]]

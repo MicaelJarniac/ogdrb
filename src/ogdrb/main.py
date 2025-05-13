@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, TypedDict
 import pycountry
 from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
+from opengd77.converters import codeplug_to_csvs, csvs_to_zip
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
@@ -55,7 +56,13 @@ async def index() -> None:  # noqa: C901, PLR0915
             },
         )
         codeplug = organize(repeaters_by_zone)
-        ui.notify(codeplug)
+        csvs = codeplug_to_csvs(codeplug)
+        zip_file = csvs_to_zip(csvs)
+        ui.download.content(
+            content=zip_file,
+            filename="ogdrb.zip",
+            media_type="application/zip",
+        )
 
     with ui.left_drawer() as drawer:
         pass
@@ -65,6 +72,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.label("OGDRB").classes("text-2xl")
         select_country = ui.select(
             label="Select countries",
+            with_input=True,
             multiple=True,
             clearable=True,
             options={country.alpha_2: country.name for country in pycountry.countries},
@@ -73,9 +81,11 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     with ui.footer():
         ui.label("OGDRB").classes("text-sm")
-        ui.label(
-            "This app is not affiliated with OpenGD77 or RepeaterBook.",
-        ).classes("text-sm")
+        ui.html(
+            "This app is not affiliated "
+            "with <a href='https://opengd77.com/' target='_blank'>OpenGD77</a> "
+            "or <a href='https://repeaterbook.com/' target='_blank'>RepeaterBook</a>."
+        )
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
