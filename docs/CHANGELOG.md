@@ -1,6 +1,48 @@
 # CHANGELOG
 
 
+## v0.2.0 (2025-05-13)
+
+### Bug Fixes
+
+- Typo
+  ([`aff2331`](https://github.com/MicaelJarniac/ogdrb/commit/aff2331cebf88ec5e25380fcb9e280ed7acbee13))
+
+### Chores
+
+- Hide sidebar
+  ([`00bf23f`](https://github.com/MicaelJarniac/ogdrb/commit/00bf23f23f0576e5c3a0caa4447e17fe781c4687))
+
+### Features
+
+- Add circle
+  ([`a2b44e5`](https://github.com/MicaelJarniac/ogdrb/commit/a2b44e53ea74e1eca44c9ad91d43322cb27624ef))
+
+- Almost export
+  ([`209b46a`](https://github.com/MicaelJarniac/ogdrb/commit/209b46a572c164014d7818643a36e275c001adb1))
+
+- Basic functionality finished
+  ([`64402a4`](https://github.com/MicaelJarniac/ogdrb/commit/64402a4b486d2ebefc49288c246df6c3d9a60ea8))
+
+- Filter bandwidth
+  ([`2b0b041`](https://github.com/MicaelJarniac/ogdrb/commit/2b0b041052558e606fa928fe5077388c1a3659b4))
+
+- Settings
+  ([`b554924`](https://github.com/MicaelJarniac/ogdrb/commit/b554924bd9b4207f47b8aec126835bf740d75a92))
+
+- Sync map and table
+  ([`19f8a54`](https://github.com/MicaelJarniac/ogdrb/commit/19f8a54d0d6093fc238571f056210da5400a194e))
+
+- Sync table and map the other way around
+  ([`c7737e0`](https://github.com/MicaelJarniac/ogdrb/commit/c7737e0369477ae544efa3c018e398866fbd84f6))
+
+- Table
+  ([`1d34aff`](https://github.com/MicaelJarniac/ogdrb/commit/1d34affc6e57d935a8e16b4d4807b62d39b5b76c))
+
+- Ux improvements
+  ([`820a4a4`](https://github.com/MicaelJarniac/ogdrb/commit/820a4a4b7a613011b95f8ef4cdb79af91d47165e))
+
+
 ## v0.1.0 (2025-04-16)
 
 ### Features
