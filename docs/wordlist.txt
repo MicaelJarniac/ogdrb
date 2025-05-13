@@ -1,7 +1,10 @@
 addopts
+aggrid
 autosummary
+balham
 callsign
 celerybeat
+circlemarker
 Codeplug
 Connor
 crustypy
@@ -17,10 +20,14 @@ ignorelist
 intersphinx
 ipynb
 ipython
+Jarniac
+latlng
 loguru
+Micael
 mkdocs
 modindex
 mypy
+nicegui
 nosetests
 noxfile
 ogdrb
