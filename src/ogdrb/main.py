@@ -10,6 +10,7 @@ import pycountry
 from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
@@ -18,6 +19,15 @@ from ogdrb.services import get_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.events import GenericEventArguments
+
+
+class Settings(BaseSettings):
+    """Settings for the app."""
+
+    model_config = SettingsConfigDict(env_file=".env")
+
+    storage_secret: str | None = None
+    on_air_token: str | None = None
 
 
 class ZoneRow(TypedDict):
@@ -273,4 +283,10 @@ async def index() -> None:  # noqa: C901, PLR0915
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(title="ogdrb", storage_secret="ogdrb", dark=True)  # noqa: S106
+    settings = Settings()
+    ui.run(
+        title="ogdrb",
+        storage_secret=settings.storage_secret,
+        dark=True,
+        on_air=settings.on_air_token,
+    )
