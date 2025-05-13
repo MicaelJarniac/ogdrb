@@ -49,11 +49,16 @@ async def index() -> None:  # noqa: C901, PLR0915
             pycountry.countries.lookup(country) for country in select_country.value
         }
         if not countries:
-            ui.notify("Please select at least one country")
+            ui.notify("Please select at least one country.", type="warning")
+            select_country.props("error")
             return
         if not rows:
-            ui.notify("Please add at least one zone")
+            ui.notify("Please add at least one zone.", type="warning")
             return
+        if len(rows) != len({row["name"] for row in rows}):
+            ui.notify("Duplicate zone names found.", type="warning")
+            return
+
         repeaters_by_zone = await get_repeaters(
             export=ExportQuery(countries=frozenset(countries)),
             zones={
@@ -96,6 +101,36 @@ async def index() -> None:  # noqa: C901, PLR0915
             "with <a href='https://opengd77.com/' target='_blank'>OpenGD77</a> "
             "or <a href='https://repeaterbook.com/' target='_blank'>RepeaterBook</a>."
         )
+
+    with ui.dialog() as dialog, ui.card():
+        ui.markdown("""
+                    # OGDRB
+                    This app allows you to import repeaters from RepeaterBook to your
+                    OpenGD77 radio.
+                    You can add zones by drawing circles on the map, and then export the
+                    codeplug as CSV files that can be imported into the OpenGD77
+                    codeplug editor.
+
+                    ## How to use
+                    1. Select the countries you want to include in your codeplug.
+                    2. Draw circles on the map to define the zones you want to include
+                    (or manually add to the list below).
+                    3. Click the "Export" button to download the codeplug as a ZIP file.
+                    4. Import the extracted folder into the OpenGD77 codeplug editor.
+                    5. Upload the codeplug to your OpenGD77 radio.
+
+                    ## Notes
+                    - The circles you draw on the map define the zones for your
+                    codeplug.
+                    - You can edit the name, latitude, longitude, and radius of each
+                    zone in the table by double-clicking on the cells.
+                    - You can delete zones by selecting them in the table and clicking
+                    the "Delete" button.
+                    - You can add new zones by clicking the "New zone" button.
+                    - You can select multiple zones by holding down the Ctrl key while
+                    clicking on them.
+                    """)
+        ui.button("Close", on_click=dialog.close)
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
@@ -277,6 +312,9 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.button("Delete selected zones", on_click=delete_selected).props(
             "icon=delete color=red",
         )
+
+    with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
+        ui.button(on_click=dialog.open, icon="contact_support").props("fab")
 
     await m.initialized()
     await sync_circles()
