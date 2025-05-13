@@ -20,8 +20,10 @@ ignorelist
 intersphinx
 ipynb
 ipython
+Jarniac
 latlng
 loguru
+Micael
 mkdocs
 modindex
 mypy

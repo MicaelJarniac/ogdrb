@@ -79,11 +79,11 @@ async def index() -> None:  # noqa: C901, PLR0915
             media_type="application/zip",
         )
 
-    with ui.left_drawer() as drawer:
-        pass
+    #' with ui.left_drawer() as drawer:
+    #'     pass
 
     with ui.header():
-        ui.button(icon="menu", on_click=drawer.toggle)
+        #' ui.button(icon="menu", on_click=drawer.toggle)
         ui.label("OGDRB").classes("text-2xl")
         select_country = ui.select(
             label="Select countries",
@@ -95,7 +95,10 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.button("Export", on_click=export).props("icon=save")
 
     with ui.footer():
-        ui.label("OGDRB").classes("text-sm")
+        ui.html(
+            "<a href='https://github.com/MicaelJarniac/ogdrb' target='_blank'>"
+            "OGDRB by MicaelJarniac</a>"
+        ).classes("text-sm")
         ui.html(
             "This app is not affiliated "
             "with <a href='https://opengd77.com/' target='_blank'>OpenGD77</a> "
