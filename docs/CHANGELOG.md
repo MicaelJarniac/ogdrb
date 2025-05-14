@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-05-14)
+
+### Build System
+
+- **deps**: Update NiceGUI
+  ([`2d51d78`](https://github.com/MicaelJarniac/ogdrb/commit/2d51d78c65d214ffac5f7bf1f3d6d3b577bb1333))
+
+### Features
+
+- Better UX, errors, info about limits, favicon
+  ([`8c1da6a`](https://github.com/MicaelJarniac/ogdrb/commit/8c1da6aaac88b7dbea803cbe55d29b04b4e17103))
+
+
 ## v0.2.0 (2025-05-13)
 
 ### Bug Fixes
