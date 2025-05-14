@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, TypedDict
 import pycountry
 from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
+from opengd77.constants import Max
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
@@ -59,18 +60,22 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Duplicate zone names found.", type="warning")
             return
 
-        repeaters_by_zone = await get_repeaters(
-            export=ExportQuery(countries=frozenset(countries)),
-            zones={
-                row["name"]: Radius(
-                    origin=LatLon(row["lat"], row["lng"]),
-                    distance=row["radius"],
-                    unit=Unit.KILOMETERS,
-                )
-                for row in rows
-            },
-        )
-        codeplug = organize(repeaters_by_zone)
+        try:
+            repeaters_by_zone = await get_repeaters(
+                export=ExportQuery(countries=frozenset(countries)),
+                zones={
+                    row["name"]: Radius(
+                        origin=LatLon(row["lat"], row["lng"]),
+                        distance=row["radius"],
+                        unit=Unit.KILOMETERS,
+                    )
+                    for row in rows
+                },
+            )
+            codeplug = organize(repeaters_by_zone)
+        except ValueError as e:
+            ui.notify(f"Error: {e}", type="negative")
+            return
         csvs = codeplug_to_csvs(codeplug)
         zip_file = csvs_to_zip(csvs)
         ui.download.content(
@@ -106,7 +111,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     with ui.dialog() as dialog, ui.card():
-        ui.markdown("""
+        ui.markdown(f"""
                     # OGDRB
                     This app allows you to import repeaters from RepeaterBook to your
                     OpenGD77 radio.
@@ -132,6 +137,17 @@ async def index() -> None:  # noqa: C901, PLR0915
                     - You can add new zones by clicking the "New zone" button.
                     - You can select multiple zones by holding down the Ctrl key while
                     clicking on them.
+
+                    ## Limits
+                    Going beyond these limits may truncate the data, or result in
+                    errors.
+                    | Field               | Limit                    |
+                    |---------------------|--------------------------|
+                    | Zones               | {Max.ZONES}              |
+                    | Channels            | {Max.CHANNELS}           |
+                    | Channels Per Zone   | {Max.CHANNELS_PER_ZONE}  |
+                    | Zone Name Length    | {Max.CHARS_ZONE_NAME}    |
+                    | Channel Name Length | {Max.CHARS_CHANNEL_NAME} |
                     """)
         ui.button("Close", on_click=dialog.close)
 
@@ -326,7 +342,8 @@ async def index() -> None:  # noqa: C901, PLR0915
 if __name__ in {"__main__", "__mp_main__"}:
     settings = Settings()
     ui.run(
-        title="ogdrb",
+        title="OGDRB",
+        favicon="📡",
         storage_secret=settings.storage_secret,
         dark=True,
         on_air=settings.on_air_token,
