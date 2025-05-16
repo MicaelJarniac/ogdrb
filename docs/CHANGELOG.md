@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.3 (2025-05-16)
+
+### Bug Fixes
+
+- Bigger map load timeout
+  ([`90767fb`](https://github.com/MicaelJarniac/ogdrb/commit/90767fb2a8c964d7dee511e708f31fa0e157aa4e))
+
+
 ## v0.4.2 (2025-05-16)
 
 ### Bug Fixes
