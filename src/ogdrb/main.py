@@ -41,7 +41,7 @@ class ZoneRow(TypedDict):
     radius: float
 
 
-@ui.page("/")
+@ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
     rows: list[ZoneRow] = []
 
@@ -352,4 +352,5 @@ if __name__ in {"__main__", "__mp_main__"}:
         storage_secret=settings.storage_secret,
         dark=True,
         on_air=settings.on_air_token,
+        reconnect_timeout=20,
     )
