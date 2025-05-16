@@ -341,7 +341,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
         ui.button(on_click=dialog.open, icon="contact_support").props("fab")
 
-    await m.initialized()
+    await m.initialized(timeout=20)
     await sync_circles()
 
 
