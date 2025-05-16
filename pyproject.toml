@@ -1,6 +1,6 @@
 [project]
 name = "ogdrb"
-version = "0.4.1"
+version = "0.4.2"
 description = "OpenGD77 + RepeaterBook"
 authors = [
   {name = "Micael Jarniac", email = "micael@jarniac.dev"},

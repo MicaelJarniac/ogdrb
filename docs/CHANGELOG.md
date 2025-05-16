@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.2 (2025-05-16)
+
+### Bug Fixes
+
+- No auto-reload when in Fly
+  ([`812da05`](https://github.com/MicaelJarniac/ogdrb/commit/812da0572efca9fad039891f82632e867d63360b))
+
+
 ## v0.4.1 (2025-05-16)
 
 ### Bug Fixes
