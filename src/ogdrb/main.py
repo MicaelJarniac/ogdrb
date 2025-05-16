@@ -60,6 +60,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Duplicate zone names found.", type="warning")
             return
 
+        loading.set_visibility(True)
         try:
             repeaters_by_zone = await get_repeaters(
                 export=ExportQuery(countries=frozenset(countries)),
@@ -76,6 +77,8 @@ async def index() -> None:  # noqa: C901, PLR0915
         except ValueError as e:
             ui.notify(f"Error: {e}", type="negative")
             return
+        finally:
+            loading.set_visibility(False)
         csvs = codeplug_to_csvs(codeplug)
         zip_file = csvs_to_zip(csvs)
         ui.download.content(
@@ -98,6 +101,8 @@ async def index() -> None:  # noqa: C901, PLR0915
             options={country.alpha_2: country.name for country in pycountry.countries},
         ).classes("w-1/3")
         ui.button("Export", on_click=export).props("icon=save")
+        loading = ui.spinner("dots", size="lg", color="red")
+        loading.set_visibility(False)
 
     with ui.footer():
         ui.html(
