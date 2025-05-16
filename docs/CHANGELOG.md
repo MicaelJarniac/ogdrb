@@ -1,6 +1,16 @@
 # CHANGELOG
 
 
+## v0.4.1 (2025-05-16)
+
+### Bug Fixes
+
+- Bigger timeouts
+  ([`c2c8938`](https://github.com/MicaelJarniac/ogdrb/commit/c2c89387f8fbd582891319dc6c1f1f354f5bf055))
+
+This is a temporary fix. I should probably make repeaterbook local DB async.
+
+
 ## v0.4.0 (2025-05-16)
 
 ### Build System
