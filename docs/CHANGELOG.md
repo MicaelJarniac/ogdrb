@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.0 (2025-05-16)
+
+### Build System
+
+- Dockerfile
+  ([`1d41665`](https://github.com/MicaelJarniac/ogdrb/commit/1d416652b9183374d73075168d7eb9059d07067e))
+
+### Features
+
+- Spinner
+  ([`054dbe0`](https://github.com/MicaelJarniac/ogdrb/commit/054dbe010aff52af73a5ee2e111540fcf8a00a43))
+
+
 ## v0.3.0 (2025-05-14)
 
 ### Build System
