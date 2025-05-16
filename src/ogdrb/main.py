@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__: tuple[str, ...] = ()
 
+import os
 from typing import TYPE_CHECKING, TypedDict
 
 import pycountry
@@ -353,4 +354,5 @@ if __name__ in {"__main__", "__mp_main__"}:
         dark=True,
         on_air=settings.on_air_token,
         reconnect_timeout=20,
+        reload="FLY_ALLOC_ID" not in os.environ,
     )
