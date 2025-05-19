@@ -5,6 +5,7 @@ from __future__ import annotations
 __all__: tuple[str, ...] = ()
 
 import os
+from enum import StrEnum
 from typing import TYPE_CHECKING, TypedDict
 
 import pycountry
@@ -21,6 +22,16 @@ from ogdrb.services import get_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.events import GenericEventArguments
+
+
+class ExternalURLs(StrEnum):
+    """External URLs."""
+
+    REPEATERBOOK = "https://repeaterbook.com"
+    REPEATERBOOK_API = "https://repeaterbook.com/wiki/doku.php?id=api"
+    REPEATERBOOK_PLUS = "https://repeaterbook.com/index.php/rbplus"
+    OPENGD77 = "https://opengd77.com"
+    GITHUB = "https://github.com/MicaelJarniac/ogdrb"
 
 
 class Settings(BaseSettings):
@@ -107,20 +118,28 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     with ui.footer():
         ui.html(
-            "<a href='https://github.com/MicaelJarniac/ogdrb' target='_blank'>"
+            f"<a href='{ExternalURLs.GITHUB}' target='_blank'>"
             "OGDRB by MicaelJarniac</a>"
         ).classes("text-sm")
         ui.html(
             "This app is not affiliated "
-            "with <a href='https://opengd77.com/' target='_blank'>OpenGD77</a> "
-            "or <a href='https://repeaterbook.com/' target='_blank'>RepeaterBook</a>."
+            f"with <a href='{ExternalURLs.OPENGD77}' target='_blank'>OpenGD77</a> "
+            f"or <a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>"
+            "RepeaterBook</a>."
+        )
+        ui.html(
+            "All repeater data is from "
+            f"<a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>RepeaterBook</a>, "
+            "using their "
+            f"<a href='{ExternalURLs.REPEATERBOOK_API}' target='_blank'>"
+            "public API</a>."
         )
 
-    with ui.dialog() as dialog, ui.card():
+    with ui.dialog() as dialog_help, ui.card():
         ui.markdown(f"""
                     # OGDRB
-                    This app allows you to import repeaters from RepeaterBook to your
-                    OpenGD77 radio.
+                    This app allows you to import repeaters from [RepeaterBook][rb] to
+                    your [OpenGD77][ogd] radio.
                     You can add zones by drawing circles on the map, and then export the
                     codeplug as CSV files that can be imported into the OpenGD77
                     codeplug editor.
@@ -154,8 +173,18 @@ async def index() -> None:  # noqa: C901, PLR0915
                     | Channels Per Zone   | {Max.CHANNELS_PER_ZONE}  |
                     | Zone Name Length    | {Max.CHARS_ZONE_NAME}    |
                     | Channel Name Length | {Max.CHARS_CHANNEL_NAME} |
+
+                    ## RepeaterBook
+                    This app uses the [RepeaterBook API][rb_api] to fetch repeater data.
+                    The API is free to use, but please consider donating or
+                    [subscribing][rb_plus] to [RepeaterBook][rb] to support their work.
+
+                    [rb]: {ExternalURLs.REPEATERBOOK}
+                    [rb_api]: {ExternalURLs.REPEATERBOOK_API}
+                    [rb_plus]: {ExternalURLs.REPEATERBOOK_PLUS}
+                    [ogd]: {ExternalURLs.OPENGD77}
                     """)
-        ui.button("Close", on_click=dialog.close)
+        ui.button("Close", on_click=dialog_help.close)
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
@@ -339,7 +368,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
-        ui.button(on_click=dialog.open, icon="contact_support").props("fab")
+        ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
 
     await m.initialized(timeout=20)
     await sync_circles()
