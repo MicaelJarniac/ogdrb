@@ -31,6 +31,7 @@ dependencies = [
     "pydantic-settings>=2.9.1",
     "repeaterbook>=0.4.0",
     "sqlmodel>=0.0.24",
+    "us>=2.0.2",
 ]
 
 [build-system]
