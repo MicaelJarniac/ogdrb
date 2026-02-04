@@ -68,8 +68,26 @@ US_STATES = {
 }
 
 
+def register_map_cluster_assets() -> None:
+    """Register Leaflet marker cluster assets."""
+    ui.add_head_html(
+        """
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+        />
+        <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+        """
+    )
+
+
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
+    register_map_cluster_assets()
     rows: list[ZoneRow] = []
 
     def selected_filters() -> CountrySelection:
@@ -106,44 +124,94 @@ async def index() -> None:  # noqa: C901, PLR0915
             }
             for repeater in repeaters
         ]
-        await ui.run_javascript(
+        clustering_enabled = await ui.run_javascript(
             f"""
-            const map = getElement('{m.id}').map;
-            if (map.__ogdrbRepeaterLayer) {{
-                map.removeLayer(map.__ogdrbRepeaterLayer);
-            }}
-            const repeaterLayer = L.layerGroup().addTo(map);
-            const repeaters = {json.dumps(marker_data)};
-
-            const CHUNK_SIZE = 300;
-            const addChunk = (index) => {{
-                const end = Math.min(index + CHUNK_SIZE, repeaters.length);
-                for (let i = index; i < end; i++) {{
-                    const repeater = repeaters[i];
-                    const marker = L.marker([repeater.lat, repeater.lng], {{
-                        title: `${{repeater.callsign}} (${{repeater.frequency}} MHz)`,
+            return await (async () => {{
+                const ensureCluster = async () => {{
+                    if (window.L && window.L.markerClusterGroup) {{
+                        return true;
+                    }}
+                    const loadScript = (src) => new Promise((resolve, reject) => {{
+                        const script = document.createElement('script');
+                        script.src = src;
+                        script.async = true;
+                        script.onload = () => resolve(true);
+                        script.onerror = () =>
+                            reject(new Error('Failed to load ' + src));
+                        document.head.appendChild(script);
                     }});
-                    marker.bindPopup(
-                        `<b>${{repeater.callsign}}</b><br>` +
-                        `${{repeater.city}}, ${{repeater.state}}<br>` +
-                        `${{repeater.country}}<br>` +
-                        `${{repeater.frequency}} MHz`
-                    );
-                    repeaterLayer.addLayer(marker);
-                }}
-                if (end < repeaters.length) {{
-                    requestAnimationFrame(() => addChunk(end));
-                }}
-            }};
+                    const loadStyle = (href) => {{
+                        if ([...document.styleSheets].some((s) => s.href === href)) {{
+                            return;
+                        }}
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = href;
+                        document.head.appendChild(link);
+                    }};
+                    loadStyle('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
+                    loadStyle('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css');
+                    try {{
+                        await loadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js');
+                    }} catch {{
+                        return false;
+                    }}
+                    return !!(window.L && window.L.markerClusterGroup);
+                }};
 
-            if (repeaters.length > 0) {{
-                requestAnimationFrame(() => addChunk(0));
-            }}
-            map.__ogdrbRepeaterLayer = repeaterLayer;
-            return repeaters.length;
+                const map = getElement('{m.id}').map;
+                if (map.__ogdrbRepeaterLayer) {{
+                    map.removeLayer(map.__ogdrbRepeaterLayer);
+                }}
+
+                const clusteringEnabled = await ensureCluster();
+                const repeaterLayer = clusteringEnabled
+                    ? L.markerClusterGroup({{
+                        chunkedLoading: true,
+                        showCoverageOnHover: false,
+                        maxClusterRadius: 60,
+                    }})
+                    : L.layerGroup();
+                repeaterLayer.addTo(map);
+                const repeaters = {json.dumps(marker_data)};
+
+                const CHUNK_SIZE = 300;
+                const addChunk = (index) => {{
+                    const end = Math.min(index + CHUNK_SIZE, repeaters.length);
+                    for (let i = index; i < end; i++) {{
+                        const repeater = repeaters[i];
+                        const title = `${{repeater.callsign}} ` +
+                            `(${{repeater.frequency}} MHz)`;
+                        const marker = L.marker([repeater.lat, repeater.lng], {{
+                            title: title,
+                        }});
+                        marker.bindPopup(
+                            `<b>${{repeater.callsign}}</b><br>` +
+                            `${{repeater.city}}, ${{repeater.state}}<br>` +
+                            `${{repeater.country}}<br>` +
+                            `${{repeater.frequency}} MHz`
+                        );
+                        repeaterLayer.addLayer(marker);
+                    }}
+                    if (end < repeaters.length) {{
+                        requestAnimationFrame(() => addChunk(end));
+                    }}
+                }};
+
+                if (repeaters.length > 0) {{
+                    requestAnimationFrame(() => addChunk(0));
+                }}
+                map.__ogdrbRepeaterLayer = repeaterLayer;
+                return clusteringEnabled;
+            }})();
             """,
             timeout=2.0,
         )
+        if not clustering_enabled:
+            ui.notify(
+                "Marker clustering unavailable; falling back to plain markers.",
+                type="warning",
+            )
 
     async def populate_repeaters() -> None:
         filters = validate_filters()
