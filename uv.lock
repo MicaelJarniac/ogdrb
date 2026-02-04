@@ -1172,7 +1172,7 @@ requires-dist = [
     { name = "pycountry", specifier = ">=24.6.1" },
     { name = "pydantic", specifier = ">=2.11.2" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "repeaterbook", specifier = ">=0.2.2" },
+    { name = "repeaterbook", specifier = ">=0.4.0" },
     { name = "sqlmodel", specifier = ">=0.0.24" },
 ]
 
@@ -1746,7 +1746,7 @@ wheels = [
 
 [[package]]
 name = "repeaterbook"
-version = "0.2.2"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1759,9 +1759,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/78/09bb4f4b9b45b454c84cf6fa9feee9dc50115f93346ecb878215c57a4ff7/repeaterbook-0.2.2.tar.gz", hash = "sha256:4c6009c69745c9ce67a4fa54f575dc2fd6fa25d56d3c1efd42c5aeddb8af89f6", size = 172049, upload-time = "2026-01-31T18:55:49.85Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/6e/a053c907062877850c36043c5be98880bc6a2378f9d9232e7c231b6c2013/repeaterbook-0.4.0.tar.gz", hash = "sha256:b4d591223c6ed37f7d226b0a250c6a99c2d49ec9894c425ff930d1a11c67525a", size = 257438, upload-time = "2026-02-04T15:56:53.843Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/f4/953ba84c3216416be14dd5368633b1af3095cacb7590c98815225e3ae0e6/repeaterbook-0.2.2-py3-none-any.whl", hash = "sha256:a2a726dff8592070cb519b9c9676d7d996e95ff7296c0e312d80f36b2c274bfb", size = 13697, upload-time = "2026-01-31T18:55:48.826Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/33/43460f8e0ca43dbb8cd27f2aee43cbc6b935a2f68d6f60b109bc8dd445df/repeaterbook-0.4.0-py3-none-any.whl", hash = "sha256:269aed9da0f6b073066d22d0e3d1fb0ff9008445c7a200e81b5a191825e6307f", size = 15711, upload-time = "2026-02-04T15:56:52.774Z" },
 ]
 
 [[package]]

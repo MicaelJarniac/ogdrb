@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__: tuple[str, ...] = ()
 
+import json
 import os
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypedDict
@@ -13,15 +14,17 @@ from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
 from opengd77.constants import Max
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
+from pycountry.db import Country
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
 from ogdrb.organizer import organize
-from ogdrb.services import get_repeaters
+from ogdrb.services import get_repeaters, prepare_local_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.events import GenericEventArguments
+    from repeaterbook import Repeater
 
 
 class ExternalURLs(StrEnum):
@@ -53,18 +56,119 @@ class ZoneRow(TypedDict):
     radius: float
 
 
+US_COUNTRY = "US"
+CountrySelection = tuple[frozenset[str], frozenset[str], set[Country]]
+US_STATES = {
+    subdivision.code.split("-")[1]: subdivision.name
+    for subdivision in sorted(
+        pycountry.subdivisions.get(country_code=US_COUNTRY),
+        key=lambda subdivision: subdivision.name,
+    )
+    if subdivision.type in {"State", "District"}
+}
+
+
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
     rows: list[ZoneRow] = []
 
-    async def export() -> None:
+    def selected_filters() -> CountrySelection:
+        selected_country_codes = frozenset(select_country.value or ())
+        selected_us_states = frozenset(select_us_state.value or ())
         countries = {
-            pycountry.countries.lookup(country) for country in select_country.value
+            pycountry.countries.lookup(country) for country in selected_country_codes
         }
+        return selected_country_codes, selected_us_states, countries
+
+    def validate_filters() -> CountrySelection | None:
+        selected_country_codes, selected_us_states, countries = selected_filters()
         if not countries:
             ui.notify("Please select at least one country.", type="warning")
             select_country.props("error")
+            return None
+        us_selected = US_COUNTRY in selected_country_codes
+        if us_selected and not selected_us_states:
+            ui.notify("Please select at least one US state.", type="warning")
+            select_us_state.props("error")
+            return None
+        return selected_country_codes, selected_us_states, countries
+
+    async def sync_repeater_markers(repeaters: list[Repeater]) -> None:
+        marker_data = [
+            {
+                "lat": float(repeater.latitude),
+                "lng": float(repeater.longitude),
+                "callsign": repeater.callsign or "Unknown",
+                "city": repeater.location_nearest_city,
+                "state": repeater.state or "",
+                "country": repeater.country or "",
+                "frequency": str(repeater.frequency),
+            }
+            for repeater in repeaters
+        ]
+        await ui.run_javascript(
+            f"""
+            const map = getElement('{m.id}').map;
+            if (map.__ogdrbRepeaterLayer) {{
+                map.removeLayer(map.__ogdrbRepeaterLayer);
+            }}
+            const repeaterLayer = L.layerGroup().addTo(map);
+            const repeaters = {json.dumps(marker_data)};
+
+            const CHUNK_SIZE = 300;
+            const addChunk = (index) => {{
+                const end = Math.min(index + CHUNK_SIZE, repeaters.length);
+                for (let i = index; i < end; i++) {{
+                    const repeater = repeaters[i];
+                    const marker = L.marker([repeater.lat, repeater.lng], {{
+                        title: `${{repeater.callsign}} (${{repeater.frequency}} MHz)`,
+                    }});
+                    marker.bindPopup(
+                        `<b>${{repeater.callsign}}</b><br>` +
+                        `${{repeater.city}}, ${{repeater.state}}<br>` +
+                        `${{repeater.country}}<br>` +
+                        `${{repeater.frequency}} MHz`
+                    );
+                    repeaterLayer.addLayer(marker);
+                }}
+                if (end < repeaters.length) {{
+                    requestAnimationFrame(() => addChunk(end));
+                }}
+            }};
+
+            if (repeaters.length > 0) {{
+                requestAnimationFrame(() => addChunk(0));
+            }}
+            map.__ogdrbRepeaterLayer = repeaterLayer;
+            return repeaters.length;
+            """,
+            timeout=2.0,
+        )
+
+    async def populate_repeaters() -> None:
+        filters = validate_filters()
+        if not filters:
             return
+        _, selected_us_states, countries = filters
+        loading.set_visibility(True)
+        try:
+            repeaters = await prepare_local_repeaters(
+                export=ExportQuery(countries=frozenset(countries)),
+                us_state_ids=selected_us_states,
+            )
+            await sync_repeater_markers(repeaters)
+        except ValueError as e:
+            ui.notify(f"Error: {e}", type="negative")
+            return
+        finally:
+            loading.set_visibility(False)
+        ui.notify(f"Loaded {len(repeaters)} repeaters.", type="positive")
+
+    async def export() -> None:
+        filters = validate_filters()
+        if not filters:
+            return
+        _, selected_us_states, countries = filters
         if not rows:
             ui.notify("Please add at least one zone.", type="warning")
             return
@@ -84,6 +188,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                     )
                     for row in rows
                 },
+                us_state_ids=selected_us_states,
             )
             codeplug = organize(repeaters_by_zone)
         except ValueError as e:
@@ -112,6 +217,26 @@ async def index() -> None:  # noqa: C901, PLR0915
             clearable=True,
             options={country.alpha_2: country.name for country in pycountry.countries},
         ).classes("w-1/3")
+        select_us_state = ui.select(
+            label="Select US states",
+            with_input=True,
+            multiple=True,
+            clearable=True,
+            options=US_STATES,
+        ).classes("w-1/3")
+        select_us_state.set_visibility(False)
+
+        def sync_us_states_visibility() -> None:
+            us_selected = US_COUNTRY in set(select_country.value or ())
+            select_us_state.set_visibility(us_selected)
+            if not us_selected:
+                select_us_state.set_value([])
+
+        select_country.on_value_change(lambda _: sync_us_states_visibility())
+
+        ui.button("Load Repeaters", on_click=populate_repeaters).props(
+            "icon=cloud_download"
+        )
         ui.button("Export", on_click=export).props("icon=save")
         loading = ui.spinner("dots", size="lg", color="red")
         loading.set_visibility(False)
@@ -146,11 +271,13 @@ async def index() -> None:  # noqa: C901, PLR0915
 
                     ## How to use
                     1. Select the countries you want to include in your codeplug.
-                    2. Draw circles on the map to define the zones you want to include
+                    If you select United States, also choose one or more states.
+                    2. Click "Load Repeaters" to cache repeaters and display markers.
+                    3. Draw circles on the map to define the zones you want to include
                     (or manually add to the list below).
-                    3. Click the "Export" button to download the codeplug as a ZIP file.
-                    4. Import the extracted folder into the OpenGD77 codeplug editor.
-                    5. Upload the codeplug to your OpenGD77 radio.
+                    4. Click the "Export" button to download the codeplug as a ZIP file.
+                    5. Import the extracted folder into the OpenGD77 codeplug editor.
+                    6. Upload the codeplug to your OpenGD77 radio.
 
                     ## Notes
                     - The circles you draw on the map define the zones for your
