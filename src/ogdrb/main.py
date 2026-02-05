@@ -459,11 +459,40 @@ async def index() -> None:  # noqa: C901, PLR0915
         aggrid.update()
         await sync_circles()
 
-    async def draw_edited(e: GenericEventArguments) -> None:
+    def iter_event_layers(e: GenericEventArguments) -> list[dict]:
         layers = e.args.get("layers")
+        if layers and "_layers" in layers:
+            return list(layers["_layers"].values())
+        layer = e.args.get("layer")
+        if layer:
+            return [layer]
+        return []
+
+    pending_grid_update = False
+    grid_update_timer = None
+
+    async def schedule_grid_update(delay: float = 0.2) -> None:
+        nonlocal pending_grid_update, grid_update_timer
+        pending_grid_update = True
+        if grid_update_timer:
+            return
+
+        async def flush_update() -> None:
+            nonlocal pending_grid_update, grid_update_timer
+            if pending_grid_update:
+                pending_grid_update = False
+                aggrid.update()
+            if grid_update_timer:
+                grid_update_timer.cancel()
+                grid_update_timer = None
+
+        grid_update_timer = ui.timer(delay, flush_update, once=True, immediate=False)
+
+    async def update_rows_from_layers(layers: list[dict], *, update_grid: bool) -> None:
         if not layers:
             return
-        for layer in layers["_layers"].values():
+        updated = False
+        for layer in layers:
             row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
                 "_ogdrb_row_id"
             )
@@ -477,14 +506,25 @@ async def index() -> None:  # noqa: C901, PLR0915
                 row["lat"] = center["lat"]
                 row["lng"] = center["lng"]
                 row["radius"] = radius / 1000
+                updated = True
+        if updated:
+            if update_grid:
                 aggrid.update()
-                await sync_circles()
+            else:
+                await schedule_grid_update()
+
+    async def draw_edited(e: GenericEventArguments) -> None:
+        await update_rows_from_layers(iter_event_layers(e), update_grid=True)
+
+    async def draw_edit_move_or_resize(e: GenericEventArguments) -> None:
+        await update_rows_from_layers(iter_event_layers(e), update_grid=False)
 
     async def draw_deleted(e: GenericEventArguments) -> None:
-        layers = e.args.get("layers")
+        layers = iter_event_layers(e)
         if not layers:
             return
-        for layer in layers["_layers"].values():
+        updated = False
+        for layer in layers:
             row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
                 "_ogdrb_row_id"
             )
@@ -494,11 +534,14 @@ async def index() -> None:  # noqa: C901, PLR0915
             row = next((row for row in rows if row["id"] == row_id), None)
             if row:
                 rows.remove(row)
-                aggrid.update()
-                await sync_circles()
+                updated = True
+        if updated:
+            aggrid.update()
 
     m.on("draw:created", draw_created)
     m.on("draw:edited", draw_edited)
+    m.on("draw:editmove", draw_edit_move_or_resize)
+    m.on("draw:editresize", draw_edit_move_or_resize)
     m.on("draw:deleted", draw_deleted)
 
     def new_id() -> int:
