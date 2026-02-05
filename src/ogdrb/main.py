@@ -7,10 +7,10 @@ __all__: tuple[str, ...] = ()
 import json
 import os
 from enum import StrEnum
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import pycountry
-import us
+import us  # type: ignore[import-untyped]
 from haversine import Unit  # type: ignore[import-untyped]
 from nicegui import ui
 from opengd77.constants import Max
@@ -57,13 +57,18 @@ class ZoneRow(TypedDict):
     radius: float
 
 
+class AGColumnDef(TypedDict, total=False):
+    """AG Grid column definition."""
+
+    field: str
+    headerName: str
+    editable: bool
+    hide: bool
+
+
 US_COUNTRY = "US"
 CountrySelection = tuple[frozenset[str], frozenset[str], set[Country]]
-US_STATE_FIPS = (
-    list(us.states.STATES)
-    + list(us.states.TERRITORIES)
-    + [us.states.DC]
-)
+US_STATE_FIPS = list(us.states.STATES) + list(us.states.TERRITORIES) + [us.states.DC]
 US_STATES = {
     state.fips: state.name for state in sorted(US_STATE_FIPS, key=lambda s: s.name)
 }
@@ -334,8 +339,10 @@ async def index() -> None:  # noqa: C901, PLR0915
         lat: float, lng: float, radius: float, *, selected: bool = False
     ) -> int:
         # https://github.com/zauberzeug/nicegui/discussions/4644
-        id_: int = await ui.run_javascript(
-            f"""
+        return cast(
+            "int",
+            await ui.run_javascript(
+                f"""
             const out = [];
             const map = getElement('{m.id}').map;
             map.eachLayer(layer => {{
@@ -352,9 +359,9 @@ async def index() -> None:  # noqa: C901, PLR0915
             }});
             return L.stamp(out[0]);
             """,
-            timeout=1.0,
+                timeout=1.0,
+            ),
         )
-        return id_
 
     async def delete_all_circles() -> None:
         await ui.run_javascript(
@@ -371,10 +378,17 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     circles_to_zones: dict[int, int] = {}
 
+    async def get_selected_rows() -> list[ZoneRow]:
+        return cast("list[ZoneRow]", await aggrid.get_selected_rows())  # type: ignore[no-untyped-call]
+
+    async def get_selected_ids() -> set[int]:
+        selected_rows = await get_selected_rows()
+        return {row["id"] for row in selected_rows}
+
     async def sync_circles() -> None:
         await delete_all_circles()
         circles_to_zones.clear()
-        selected_ids = [row["id"] for row in await aggrid.get_selected_rows()]
+        selected_ids = await get_selected_ids()
         for row in rows:
             circles_to_zones[
                 await add_circle(
@@ -457,17 +471,17 @@ async def index() -> None:  # noqa: C901, PLR0915
         await sync_circles()
 
     async def delete_selected() -> None:
-        selected_names = [row["id"] for row in await aggrid.get_selected_rows()]
-        rows[:] = [row for row in rows if row["id"] not in selected_names]
+        selected_ids = await get_selected_ids()
+        rows[:] = [row for row in rows if row["id"] not in selected_ids]
         aggrid.update()
         await sync_circles()
 
     columns = [
-        {"field": "name", "headerName": "Name", "editable": True},
-        {"field": "lat", "headerName": "Latitude", "editable": True},
-        {"field": "lng", "headerName": "Longitude", "editable": True},
-        {"field": "radius", "headerName": "Radius (km)", "editable": True},
-        {"field": "id", "headerName": "ID", "hide": True},
+        AGColumnDef(field="name", headerName="Name", editable=True),
+        AGColumnDef(field="lat", headerName="Latitude", editable=True),
+        AGColumnDef(field="lng", headerName="Longitude", editable=True),
+        AGColumnDef(field="radius", headerName="Radius (km)", editable=True),
+        AGColumnDef(field="id", headerName="ID", hide=True),
     ]
 
     aggrid = ui.aggrid(
