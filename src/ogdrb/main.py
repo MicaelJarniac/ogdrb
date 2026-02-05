@@ -336,28 +336,45 @@ async def index() -> None:  # noqa: C901, PLR0915
     )
 
     async def add_circle(
-        lat: float, lng: float, radius: float, *, selected: bool = False
+        lat: float,
+        lng: float,
+        radius: float,
+        row_id: int,
+        *,
+        selected: bool = False,
     ) -> int:
         # https://github.com/zauberzeug/nicegui/discussions/4644
         return cast(
             "int",
             await ui.run_javascript(
                 f"""
-            const out = [];
-            const map = getElement('{m.id}').map;
-            map.eachLayer(layer => {{
-                if (layer instanceof L.FeatureGroup) {{
-                    const myCircle = L.circle(
-                        [{lat}, {lng}],
-                        {{
-                            radius: {radius},
-                            color: '{"red" if selected else "blue"}',
-                        }}
-                    ).addTo(layer);
-                    out.push(myCircle);
+            try {{
+                const out = [];
+                const el = getElement('{m.id}');
+                const map = el ? el.map : null;
+                if (!map) {{
+                    return null;
                 }}
-            }});
-            return L.stamp(out[0]);
+                const drawGroup = Object.values(map._layers).find(
+                    layer => layer instanceof L.FeatureGroup && !layer.id
+                );
+                if (!drawGroup) {{
+                    return null;
+                }}
+                const myCircle = L.circle(
+                    [{lat}, {lng}],
+                    {{
+                        radius: {radius},
+                        color: '{"red" if selected else "blue"}',
+                    }}
+                ).addTo(drawGroup);
+                myCircle._ogdrb_row_id = {row_id};
+                out.push(myCircle);
+                return out.length ? L.stamp(out[0]) : null;
+            }} catch (err) {{
+                console.error(err);
+                return null;
+            }}
             """,
                 timeout=1.0,
             ),
@@ -366,12 +383,24 @@ async def index() -> None:  # noqa: C901, PLR0915
     async def delete_all_circles() -> None:
         await ui.run_javascript(
             f"""
-            getElement('{m.id}').map.eachLayer(layer => {{
-                if (layer instanceof L.Circle) {{
-                    layer.remove();
+            try {{
+                const el = getElement('{m.id}');
+                const map = el ? el.map : null;
+                if (!map) {{
+                    return null;
                 }}
-            }});
-            return;
+                const drawGroup = Object.values(map._layers).find(
+                    layer => layer instanceof L.FeatureGroup && !layer.id
+                );
+                if (!drawGroup) {{
+                    return null;
+                }}
+                drawGroup.clearLayers();
+                return true;
+            }} catch (err) {{
+                console.error(err);
+                return null;
+            }}
             """,
             timeout=1.0,
         )
@@ -381,23 +410,36 @@ async def index() -> None:  # noqa: C901, PLR0915
     async def get_selected_rows() -> list[ZoneRow]:
         return cast("list[ZoneRow]", await aggrid.get_selected_rows())  # type: ignore[no-untyped-call]
 
+    def has_client_connection() -> bool:
+        client = ui.context.client
+        return bool(client and client.has_socket_connection)
+
     async def get_selected_ids() -> set[int]:
         selected_rows = await get_selected_rows()
         return {row["id"] for row in selected_rows}
 
     async def sync_circles() -> None:
-        await delete_all_circles()
+        if not has_client_connection():
+            return
+        try:
+            await delete_all_circles()
+        except TimeoutError:
+            return
         circles_to_zones.clear()
         selected_ids = await get_selected_ids()
         for row in rows:
-            circles_to_zones[
-                await add_circle(
+            try:
+                circle_id = await add_circle(
                     lat=row["lat"],
                     lng=row["lng"],
                     radius=row["radius"] * 1000,  # convert km to m
+                    row_id=row["id"],
                     selected=row["id"] in selected_ids,
                 )
-            ] = row["id"]
+            except TimeoutError:
+                return
+            if circle_id is not None:
+                circles_to_zones[circle_id] = row["id"]
 
     async def draw_created(e: GenericEventArguments) -> None:
         layer = e.args.get("layer")
@@ -422,7 +464,9 @@ async def index() -> None:  # noqa: C901, PLR0915
         if not layers:
             return
         for layer in layers["_layers"].values():
-            row_id = circles_to_zones.get(layer["_leaflet_id"])
+            row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
+                "_ogdrb_row_id"
+            )
             if not row_id:
                 ui.notify(f"Circle with ID {layer['_leaflet_id']} not found")
                 continue
@@ -441,7 +485,9 @@ async def index() -> None:  # noqa: C901, PLR0915
         if not layers:
             return
         for layer in layers["_layers"].values():
-            row_id = circles_to_zones.get(layer["_leaflet_id"])
+            row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
+                "_ogdrb_row_id"
+            )
             if not row_id:
                 ui.notify(f"Circle with ID {layer['_leaflet_id']} not found")
                 continue
@@ -511,7 +557,6 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
 
     await m.initialized(timeout=20)
-    await sync_circles()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
