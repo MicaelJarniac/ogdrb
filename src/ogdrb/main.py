@@ -90,6 +90,7 @@ class ZoneManager:
     def __init__(self, leaflet: Leaflet, grid: AgGrid, rows: list[ZoneRow]) -> None:
         self._map_id = leaflet.id
         self._grid = grid
+        self._grid_id = grid.id
         self._rows = rows
         self._row_to_leaflet: dict[int, int] = {}
         self._leaflet_to_row: dict[int, int] = {}
@@ -162,19 +163,28 @@ class ZoneManager:
     # -- JS bridge (each method = one run_javascript call) ----------------------
 
     async def _js_add_circle(
-        self, lat: float, lng: float, radius_m: float, color: str = "blue"
+        self,
+        lat: float,
+        lng: float,
+        radius_m: float,
+        row_id: int,
+        color: str = "blue",
     ) -> int | None:
         """Create a circle in the draw FeatureGroup. Returns its leaflet_id."""
         result = await ui.run_javascript(
             f"""
             (() => {{
                 try {{
-                    const el = getElement('{self._map_id}');
-                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    const mapEl = getElement('{self._map_id}');
+                    const group = mapEl && mapEl.map && mapEl.map._ogdrb_drawGroup;
                     if (!group) return null;
                     const c = L.circle([{lat}, {lng}], {{
                         radius: {radius_m}, color: '{color}'
                     }}).addTo(group);
+                    c._ogdrb_row_id = {row_id};
+                    c.on('click', () => mapEl.$emit('circle-click', {{
+                        row_id: {row_id}
+                    }}));
                     return L.stamp(c);
                 }} catch (e) {{ console.error('_js_add_circle', e); return null; }}
             }})();
@@ -247,18 +257,43 @@ class ZoneManager:
             timeout=2.0,
         )
 
-    async def _js_stamp_circle(self, leaflet_id: int, row_id: int) -> None:
-        """Stamp a circle with ``_ogdrb_row_id`` for fallback identification."""
+    async def _js_setup_circle(self, leaflet_id: int, row_id: int) -> None:
+        """Stamp a circle with ``_ogdrb_row_id`` and attach a click handler."""
         await ui.run_javascript(
             f"""
             (() => {{
                 try {{
-                    const el = getElement('{self._map_id}');
-                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    const mapEl = getElement('{self._map_id}');
+                    const group = mapEl && mapEl.map && mapEl.map._ogdrb_drawGroup;
                     if (!group) return;
                     const c = group.getLayer({leaflet_id});
-                    if (c) c._ogdrb_row_id = {row_id};
-                }} catch (e) {{ console.error('_js_stamp_circle', e); }}
+                    if (!c) return;
+                    c._ogdrb_row_id = {row_id};
+                    c.on('click', () => mapEl.$emit('circle-click', {{
+                        row_id: {row_id}
+                    }}));
+                }} catch (e) {{ console.error('_js_setup_circle', e); }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    async def _js_select_grid_row(self, row_id: int) -> None:
+        """Select a single row in the AG Grid by its data id."""
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const gridEl = getElement('{self._grid_id}');
+                    if (!gridEl || !gridEl.api) return;
+                    gridEl.api.deselectAll();
+                    gridEl.api.forEachNode(node => {{
+                        if (node.data && node.data.id === {row_id}) {{
+                            node.setSelected(true);
+                            gridEl.api.ensureNodeVisible(node);
+                        }}
+                    }});
+                }} catch (e) {{ console.error('_js_select_grid_row', e); }}
             }})();
             """,
             timeout=2.0,
@@ -287,12 +322,14 @@ class ZoneManager:
         )
 
         if leaflet_id is not None:
-            # NiceGUI already added the circle; just register and stamp it.
+            # NiceGUI already added the circle; just register and set up click handler.
             self._register(row_id, int(leaflet_id))
-            await self._js_stamp_circle(int(leaflet_id), row_id)
+            await self._js_setup_circle(int(leaflet_id), row_id)
         else:
             # Fallback: create the circle programmatically.
-            new_lid = await self._js_add_circle(center["lat"], center["lng"], radius_m)
+            new_lid = await self._js_add_circle(
+                center["lat"], center["lng"], radius_m, row_id
+            )
             if new_lid is not None:
                 self._register(row_id, new_lid)
 
@@ -354,6 +391,13 @@ class ZoneManager:
 
         self._grid.update()
 
+    async def handle_circle_click(self, e: GenericEventArguments) -> None:
+        """Circle clicked on map -> select the corresponding row in the grid."""
+        row_id = e.args.get("row_id")
+        if row_id is None:
+            return
+        await self._js_select_grid_row(int(row_id))
+
     async def handle_selection_changed(self, _e: GenericEventArguments) -> None:
         """Grid row selection changed -> batch-update circle colors."""
         selected_rows = cast(
@@ -375,7 +419,7 @@ class ZoneManager:
         self._rows.append(
             ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
         )
-        leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0)
+        leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0, row_id)
         if leaflet_id is not None:
             self._register(row_id, leaflet_id)
         self._grid.update()
@@ -715,6 +759,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     m.on("draw:editmove", zm.handle_draw_edit_move_or_resize)
     m.on("draw:editresize", zm.handle_draw_edit_move_or_resize)
     m.on("draw:deleted", zm.handle_draw_deleted)
+    m.on("circle-click", zm.handle_circle_click)
     aggrid.on("cellValueChanged", zm.handle_cell_value_changed)
     aggrid.on("rowSelected", zm.handle_selection_changed)
 
