@@ -1,5 +1,6 @@
 addopts
 aggrid
+APRS
 autosummary
 balham
 callsign
@@ -8,6 +9,7 @@ circlemarker
 Codeplug
 Connor
 crustypy
+ctcss
 Cython
 dmypy
 docstrings
@@ -58,6 +60,7 @@ SPHINXOPTS
 Spyder
 spyderproject
 spyproject
+timeslot
 toctree
 unittests
 venv
