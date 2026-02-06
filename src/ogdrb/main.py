@@ -7,7 +7,7 @@ __all__: tuple[str, ...] = ()
 import json
 import os
 from enum import StrEnum
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import pycountry
 import us  # type: ignore[import-untyped]
@@ -24,6 +24,8 @@ from ogdrb.organizer import organize
 from ogdrb.services import get_repeaters, prepare_local_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
+    from nicegui.elements.aggrid import AgGrid
+    from nicegui.elements.leaflet import Leaflet
     from nicegui.events import GenericEventArguments
     from repeaterbook import Repeater
 
@@ -72,6 +74,356 @@ US_STATE_FIPS = list(us.states.STATES) + list(us.states.TERRITORIES) + [us.state
 US_STATES = {
     state.fips: state.name for state in sorted(US_STATE_FIPS, key=lambda s: s.name)
 }
+
+
+class ZoneManager:
+    """Manages bidirectional sync between Leaflet map circles and AG Grid rows.
+
+    Instead of deleting all circles and recreating them on every change, this
+    class performs targeted updates:
+
+    - Map events only update grid rows (circles are already positioned by Leaflet).
+    - Grid events only update the affected circle on the map.
+    - Selection changes only update circle colors (single batched JS call).
+    """
+
+    def __init__(self, leaflet: Leaflet, grid: AgGrid, rows: list[ZoneRow]) -> None:
+        self._map_id = leaflet.id
+        self._grid = grid
+        self._rows = rows
+        self._row_to_leaflet: dict[int, int] = {}
+        self._leaflet_to_row: dict[int, int] = {}
+        self._next_id = 1
+        self._pending_grid_update = False
+        self._grid_update_timer: object | None = None
+
+    @property
+    def rows(self) -> list[ZoneRow]:
+        """The zone rows (same list object shared with AG Grid rowData)."""
+        return self._rows
+
+    async def init(self) -> None:
+        """Cache the draw FeatureGroup reference after map initialization."""
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                const el = getElement('{self._map_id}');
+                if (el && el.map) {{
+                    el.map._ogdrb_drawGroup = Object.values(el.map._layers).find(
+                        l => l instanceof L.FeatureGroup && !l.id
+                    ) || null;
+                }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    # -- ID management ----------------------------------------------------------
+
+    def _new_id(self) -> int:
+        row_id = self._next_id
+        self._next_id += 1
+        return row_id
+
+    def _register(self, row_id: int, leaflet_id: int) -> None:
+        self._row_to_leaflet[row_id] = leaflet_id
+        self._leaflet_to_row[leaflet_id] = row_id
+
+    def _unregister(self, row_id: int) -> None:
+        leaflet_id = self._row_to_leaflet.pop(row_id, None)
+        if leaflet_id is not None:
+            self._leaflet_to_row.pop(leaflet_id, None)
+
+    def _find_row(self, row_id: int) -> ZoneRow | None:
+        return next((r for r in self._rows if r["id"] == row_id), None)
+
+    def _resolve_row_id(self, layer: dict[str, Any]) -> int | None:
+        """Resolve a row ID from a Leaflet layer dict.
+
+        Tries the leaflet_id mapping first, then the ``_ogdrb_row_id`` stamp.
+        """
+        leaflet_id = layer.get("_leaflet_id")
+        if leaflet_id is not None:
+            row_id = self._leaflet_to_row.get(int(leaflet_id))
+            if row_id is not None:
+                return row_id
+        ogdrb_id = layer.get("_ogdrb_row_id")
+        return int(ogdrb_id) if ogdrb_id is not None else None
+
+    @staticmethod
+    def _iter_event_layers(e: GenericEventArguments) -> list[dict[str, Any]]:
+        """Extract individual layer dicts from a draw event."""
+        layers = e.args.get("layers")
+        if layers and "_layers" in layers:
+            return list(layers["_layers"].values())
+        layer = e.args.get("layer")
+        return [layer] if layer else []
+
+    # -- JS bridge (each method = one run_javascript call) ----------------------
+
+    async def _js_add_circle(
+        self, lat: float, lng: float, radius_m: float, color: str = "blue"
+    ) -> int | None:
+        """Create a circle in the draw FeatureGroup. Returns its leaflet_id."""
+        result = await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const el = getElement('{self._map_id}');
+                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!group) return null;
+                    const c = L.circle([{lat}, {lng}], {{
+                        radius: {radius_m}, color: '{color}'
+                    }}).addTo(group);
+                    return L.stamp(c);
+                }} catch (e) {{ console.error('_js_add_circle', e); return null; }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+        return int(result) if result is not None else None
+
+    async def _js_remove_circles(self, leaflet_ids: list[int]) -> None:
+        """Batch-remove circles from the draw FeatureGroup."""
+        if not leaflet_ids:
+            return
+        ids_json = json.dumps(leaflet_ids)
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const el = getElement('{self._map_id}');
+                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!group) return;
+                    for (const id of {ids_json}) {{
+                        const c = group.getLayer(id);
+                        if (c) group.removeLayer(c);
+                    }}
+                }} catch (e) {{ console.error('_js_remove_circles', e); }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    async def _js_update_circle(
+        self, leaflet_id: int, lat: float, lng: float, radius_m: float
+    ) -> None:
+        """Move and resize a single circle."""
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const el = getElement('{self._map_id}');
+                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!group) return;
+                    const c = group.getLayer({leaflet_id});
+                    if (c) {{ c.setLatLng([{lat}, {lng}]); c.setRadius({radius_m}); }}
+                }} catch (e) {{ console.error('_js_update_circle', e); }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    async def _js_set_circle_colors(self, color_map: dict[int, str]) -> None:
+        """Batch-update circle colors. ``color_map``: leaflet_id -> color."""
+        if not color_map:
+            return
+        entries_json = json.dumps({str(k): v for k, v in color_map.items()})
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const el = getElement('{self._map_id}');
+                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!group) return;
+                    const m = {entries_json};
+                    for (const [id, color] of Object.entries(m)) {{
+                        const c = group.getLayer(Number(id));
+                        if (c) c.setStyle({{ color }});
+                    }}
+                }} catch (e) {{ console.error('_js_set_circle_colors', e); }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    async def _js_stamp_circle(self, leaflet_id: int, row_id: int) -> None:
+        """Stamp a circle with ``_ogdrb_row_id`` for fallback identification."""
+        await ui.run_javascript(
+            f"""
+            (() => {{
+                try {{
+                    const el = getElement('{self._map_id}');
+                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!group) return;
+                    const c = group.getLayer({leaflet_id});
+                    if (c) c._ogdrb_row_id = {row_id};
+                }} catch (e) {{ console.error('_js_stamp_circle', e); }}
+            }})();
+            """,
+            timeout=2.0,
+        )
+
+    # -- Map event handlers -----------------------------------------------------
+
+    async def handle_draw_created(self, e: GenericEventArguments) -> None:
+        """Circle drawn on map -> register mapping + add row."""
+        layer = e.args.get("layer")
+        if not layer:
+            return
+        leaflet_id = layer.get("_leaflet_id")
+        center = layer["_latlng"]
+        radius_m = layer["_mRadius"]
+
+        row_id = self._new_id()
+        self._rows.append(
+            ZoneRow(
+                id=row_id,
+                name="New Zone",
+                lat=center["lat"],
+                lng=center["lng"],
+                radius=radius_m / 1000,
+            )
+        )
+
+        if leaflet_id is not None:
+            # NiceGUI already added the circle; just register and stamp it.
+            self._register(row_id, int(leaflet_id))
+            await self._js_stamp_circle(int(leaflet_id), row_id)
+        else:
+            # Fallback: create the circle programmatically.
+            new_lid = await self._js_add_circle(center["lat"], center["lng"], radius_m)
+            if new_lid is not None:
+                self._register(row_id, new_lid)
+
+        self._grid.update()
+
+    async def handle_draw_edited(self, e: GenericEventArguments) -> None:
+        """Circles edited on map (edit completed) -> update rows."""
+        self._update_rows_from_layers(self._iter_event_layers(e))
+        self._grid.update()
+
+    async def handle_draw_edit_move_or_resize(self, e: GenericEventArguments) -> None:
+        """Circle being moved/resized (during edit) -> debounced row update."""
+        self._update_rows_from_layers(self._iter_event_layers(e))
+        self._schedule_grid_update()
+
+    async def handle_draw_deleted(self, e: GenericEventArguments) -> None:
+        """Circles deleted on map -> remove rows."""
+        for layer in self._iter_event_layers(e):
+            row_id = self._resolve_row_id(layer)
+            if row_id is None:
+                continue
+            row = self._find_row(row_id)
+            if row:
+                self._rows.remove(row)
+                self._unregister(row_id)
+        self._grid.update()
+
+    # -- Grid event handlers ----------------------------------------------------
+
+    async def handle_cell_value_changed(self, e: GenericEventArguments) -> None:
+        """Grid cell edited -> update row + sync circle only if geometry changed."""
+        data = e.args["data"]
+        row_id = int(data["id"])
+        old_row = self._find_row(row_id)
+
+        new_row = ZoneRow(
+            id=row_id,
+            name=str(data["name"]),
+            lat=float(data["lat"]),
+            lng=float(data["lng"]),
+            radius=float(data["radius"]),
+        )
+        self._rows[:] = [new_row if r["id"] == row_id else r for r in self._rows]
+
+        if old_row is not None:
+            geometry_changed = (
+                old_row["lat"] != new_row["lat"]
+                or old_row["lng"] != new_row["lng"]
+                or old_row["radius"] != new_row["radius"]
+            )
+            leaflet_id = self._row_to_leaflet.get(row_id)
+            if geometry_changed and leaflet_id is not None:
+                await self._js_update_circle(
+                    leaflet_id,
+                    new_row["lat"],
+                    new_row["lng"],
+                    new_row["radius"] * 1000,
+                )
+
+        self._grid.update()
+
+    async def handle_selection_changed(self, _e: GenericEventArguments) -> None:
+        """Grid row selection changed -> batch-update circle colors."""
+        selected_rows = cast(
+            "list[ZoneRow]",
+            await self._grid.get_selected_rows(),  # type: ignore[no-untyped-call]
+        )
+        selected_ids = {r["id"] for r in selected_rows}
+        color_map = {
+            lid: "red" if rid in selected_ids else "blue"
+            for rid, lid in self._row_to_leaflet.items()
+        }
+        await self._js_set_circle_colors(color_map)
+
+    # -- Button actions ---------------------------------------------------------
+
+    async def add_zone(self) -> None:
+        """Add a new zone from the 'New zone' button."""
+        row_id = self._new_id()
+        self._rows.append(
+            ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
+        )
+        leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0)
+        if leaflet_id is not None:
+            self._register(row_id, leaflet_id)
+        self._grid.update()
+
+    async def delete_selected(self) -> None:
+        """Delete selected zones from grid and map."""
+        selected_rows = cast(
+            "list[ZoneRow]",
+            await self._grid.get_selected_rows(),  # type: ignore[no-untyped-call]
+        )
+        selected_ids = {r["id"] for r in selected_rows}
+        leaflet_ids = [
+            self._row_to_leaflet[rid]
+            for rid in selected_ids
+            if rid in self._row_to_leaflet
+        ]
+        await self._js_remove_circles(leaflet_ids)
+        for row_id in selected_ids:
+            self._unregister(row_id)
+        self._rows[:] = [r for r in self._rows if r["id"] not in selected_ids]
+        self._grid.update()
+
+    # -- Private helpers --------------------------------------------------------
+
+    def _update_rows_from_layers(self, layers: list[dict[str, Any]]) -> None:
+        for layer in layers:
+            row_id = self._resolve_row_id(layer)
+            if row_id is None:
+                continue
+            row = self._find_row(row_id)
+            if row:
+                center = layer["_latlng"]
+                row["lat"] = center["lat"]
+                row["lng"] = center["lng"]
+                row["radius"] = layer["_mRadius"] / 1000
+
+    def _schedule_grid_update(self, delay: float = 0.2) -> None:
+        self._pending_grid_update = True
+        if self._grid_update_timer is not None:
+            return
+
+        def flush() -> None:
+            if self._pending_grid_update:
+                self._pending_grid_update = False
+                self._grid.update()
+            self._grid_update_timer = None
+
+        self._grid_update_timer = ui.timer(delay, flush, once=True, immediate=False)
 
 
 @ui.page("/", response_timeout=20)
@@ -335,236 +687,6 @@ async def index() -> None:  # noqa: C901, PLR0915
         ],
     )
 
-    async def add_circle(
-        lat: float,
-        lng: float,
-        radius: float,
-        row_id: int,
-        *,
-        selected: bool = False,
-    ) -> int:
-        # https://github.com/zauberzeug/nicegui/discussions/4644
-        return cast(
-            "int",
-            await ui.run_javascript(
-                f"""
-            try {{
-                const out = [];
-                const el = getElement('{m.id}');
-                const map = el ? el.map : null;
-                if (!map) {{
-                    return null;
-                }}
-                const drawGroup = Object.values(map._layers).find(
-                    layer => layer instanceof L.FeatureGroup && !layer.id
-                );
-                if (!drawGroup) {{
-                    return null;
-                }}
-                const myCircle = L.circle(
-                    [{lat}, {lng}],
-                    {{
-                        radius: {radius},
-                        color: '{"red" if selected else "blue"}',
-                    }}
-                ).addTo(drawGroup);
-                myCircle._ogdrb_row_id = {row_id};
-                out.push(myCircle);
-                return out.length ? L.stamp(out[0]) : null;
-            }} catch (err) {{
-                console.error(err);
-                return null;
-            }}
-            """,
-                timeout=1.0,
-            ),
-        )
-
-    async def delete_all_circles() -> None:
-        await ui.run_javascript(
-            f"""
-            try {{
-                const el = getElement('{m.id}');
-                const map = el ? el.map : null;
-                if (!map) {{
-                    return null;
-                }}
-                const drawGroup = Object.values(map._layers).find(
-                    layer => layer instanceof L.FeatureGroup && !layer.id
-                );
-                if (!drawGroup) {{
-                    return null;
-                }}
-                drawGroup.clearLayers();
-                return true;
-            }} catch (err) {{
-                console.error(err);
-                return null;
-            }}
-            """,
-            timeout=1.0,
-        )
-
-    circles_to_zones: dict[int, int] = {}
-
-    async def get_selected_rows() -> list[ZoneRow]:
-        return cast("list[ZoneRow]", await aggrid.get_selected_rows())  # type: ignore[no-untyped-call]
-
-    def has_client_connection() -> bool:
-        client = ui.context.client
-        return bool(client and client.has_socket_connection)
-
-    async def get_selected_ids() -> set[int]:
-        selected_rows = await get_selected_rows()
-        return {row["id"] for row in selected_rows}
-
-    async def sync_circles() -> None:
-        if not has_client_connection():
-            return
-        try:
-            await delete_all_circles()
-        except TimeoutError:
-            return
-        circles_to_zones.clear()
-        selected_ids = await get_selected_ids()
-        for row in rows:
-            try:
-                circle_id = await add_circle(
-                    lat=row["lat"],
-                    lng=row["lng"],
-                    radius=row["radius"] * 1000,  # convert km to m
-                    row_id=row["id"],
-                    selected=row["id"] in selected_ids,
-                )
-            except TimeoutError:
-                return
-            if circle_id is not None:
-                circles_to_zones[circle_id] = row["id"]
-
-    async def draw_created(e: GenericEventArguments) -> None:
-        layer = e.args.get("layer")
-        if not layer:
-            return
-        center = layer["_latlng"]
-        radius = layer["_mRadius"]
-        rows.append(
-            ZoneRow(
-                id=new_id(),
-                name="New Zone",
-                lat=center["lat"],
-                lng=center["lng"],
-                radius=radius / 1000,  # convert m to km
-            )
-        )
-        aggrid.update()
-        await sync_circles()
-
-    def iter_event_layers(e: GenericEventArguments) -> list[dict]:
-        layers = e.args.get("layers")
-        if layers and "_layers" in layers:
-            return list(layers["_layers"].values())
-        layer = e.args.get("layer")
-        if layer:
-            return [layer]
-        return []
-
-    pending_grid_update = False
-    grid_update_timer = None
-
-    async def schedule_grid_update(delay: float = 0.2) -> None:
-        nonlocal pending_grid_update, grid_update_timer
-        pending_grid_update = True
-        if grid_update_timer:
-            return
-
-        async def flush_update() -> None:
-            nonlocal pending_grid_update, grid_update_timer
-            if pending_grid_update:
-                pending_grid_update = False
-                aggrid.update()
-            if grid_update_timer:
-                grid_update_timer.cancel()
-                grid_update_timer = None
-
-        grid_update_timer = ui.timer(delay, flush_update, once=True, immediate=False)
-
-    async def update_rows_from_layers(layers: list[dict], *, update_grid: bool) -> None:
-        if not layers:
-            return
-        updated = False
-        for layer in layers:
-            row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
-                "_ogdrb_row_id"
-            )
-            if not row_id:
-                ui.notify(f"Circle with ID {layer['_leaflet_id']} not found")
-                continue
-            row = next((row for row in rows if row["id"] == row_id), None)
-            if row:
-                center = layer["_latlng"]
-                radius = layer["_mRadius"]
-                row["lat"] = center["lat"]
-                row["lng"] = center["lng"]
-                row["radius"] = radius / 1000
-                updated = True
-        if updated:
-            if update_grid:
-                aggrid.update()
-            else:
-                await schedule_grid_update()
-
-    async def draw_edited(e: GenericEventArguments) -> None:
-        await update_rows_from_layers(iter_event_layers(e), update_grid=True)
-
-    async def draw_edit_move_or_resize(e: GenericEventArguments) -> None:
-        await update_rows_from_layers(iter_event_layers(e), update_grid=False)
-
-    async def draw_deleted(e: GenericEventArguments) -> None:
-        layers = iter_event_layers(e)
-        if not layers:
-            return
-        updated = False
-        for layer in layers:
-            row_id = circles_to_zones.get(layer["_leaflet_id"]) or layer.get(
-                "_ogdrb_row_id"
-            )
-            if not row_id:
-                ui.notify(f"Circle with ID {layer['_leaflet_id']} not found")
-                continue
-            row = next((row for row in rows if row["id"] == row_id), None)
-            if row:
-                rows.remove(row)
-                updated = True
-        if updated:
-            aggrid.update()
-
-    m.on("draw:created", draw_created)
-    m.on("draw:edited", draw_edited)
-    m.on("draw:editmove", draw_edit_move_or_resize)
-    m.on("draw:editresize", draw_edit_move_or_resize)
-    m.on("draw:deleted", draw_deleted)
-
-    def new_id() -> int:
-        """Get the next row ID."""
-        return max((row["id"] for row in rows), default=0) + 1
-
-    async def add_row() -> None:
-        rows.append(ZoneRow(id=new_id(), name="New Zone", lat=0.0, lng=0.0, radius=1.0))
-        aggrid.update()
-        await sync_circles()
-
-    async def handle_cell_value_change(e: GenericEventArguments) -> None:
-        new_row: ZoneRow = e.args["data"]
-        rows[:] = [row | new_row if row["id"] == new_row["id"] else row for row in rows]
-        aggrid.update()
-        await sync_circles()
-
-    async def delete_selected() -> None:
-        selected_ids = await get_selected_ids()
-        rows[:] = [row for row in rows if row["id"] not in selected_ids]
-        aggrid.update()
-        await sync_circles()
-
     columns = [
         AGColumnDef(field="name", headerName="Name", editable=True),
         AGColumnDef(field="lat", headerName="Latitude", editable=True),
@@ -585,14 +707,22 @@ async def index() -> None:  # noqa: C901, PLR0915
         },
         theme="balham-dark",
     )
-    aggrid.on("cellValueChanged", handle_cell_value_change)
-    aggrid.on("rowSelected", sync_circles)
+
+    zm = ZoneManager(m, aggrid, rows)
+
+    m.on("draw:created", zm.handle_draw_created)
+    m.on("draw:edited", zm.handle_draw_edited)
+    m.on("draw:editmove", zm.handle_draw_edit_move_or_resize)
+    m.on("draw:editresize", zm.handle_draw_edit_move_or_resize)
+    m.on("draw:deleted", zm.handle_draw_deleted)
+    aggrid.on("cellValueChanged", zm.handle_cell_value_changed)
+    aggrid.on("rowSelected", zm.handle_selection_changed)
 
     with ui.row():
-        ui.button("New zone", on_click=add_row).props(
+        ui.button("New zone", on_click=zm.add_zone).props(
             "icon=add color=green",
         )
-        ui.button("Delete selected zones", on_click=delete_selected).props(
+        ui.button("Delete selected zones", on_click=zm.delete_selected).props(
             "icon=delete color=red",
         )
 
@@ -600,6 +730,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
 
     await m.initialized(timeout=20)
+    await zm.init()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
