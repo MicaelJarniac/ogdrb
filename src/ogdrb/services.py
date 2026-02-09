@@ -17,7 +17,7 @@ from repeaterbook import Repeater, RepeaterBook, queries
 from repeaterbook.models import ExportQuery, Status, Use
 from repeaterbook.queries import Bands
 from repeaterbook.services import RepeaterBookAPI
-from sqlmodel import or_
+from sqlmodel import col, or_
 
 from ogdrb.converters import BANDWIDTH, repeater_to_channels
 
@@ -26,6 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from opengd77.models import AnalogChannel, DigitalChannel
     from repeaterbook.utils import Radius
+    from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
 
 @frozen
@@ -148,14 +149,14 @@ async def prepare_local_repeaters(
     rb.populate(unique_repeaters.values())
 
     country_names = {country.name for country in export.countries}
-    where = []
+    where: list[BinaryExpression[bool] | ColumnElement[bool]] = []
     if country_names:
-        where.append(Repeater.country.in_(country_names))
+        where.append(col(Repeater.country).in_(country_names))
     if us_state_ids:
         where.append(
             or_(
                 Repeater.country != "United States",
-                Repeater.state_id.in_(us_state_ids),
+                col(Repeater.state_id).in_(us_state_ids),
             )
         )
 
