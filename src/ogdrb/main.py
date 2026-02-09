@@ -171,8 +171,10 @@ class ZoneManager:
         color: str = "blue",
     ) -> int | None:
         """Create a circle in the draw FeatureGroup. Returns its leaflet_id."""
-        result = await ui.run_javascript(
-            f"""
+        result = cast(
+            "str | int | None",
+            await ui.run_javascript(
+                f"""
             (() => {{
                 try {{
                     const mapEl = getElement('{self._map_id}');
@@ -189,7 +191,8 @@ class ZoneManager:
                 }} catch (e) {{ console.error('_js_add_circle', e); return null; }}
             }})();
             """,
-            timeout=2.0,
+                timeout=2.0,
+            ),
         )
         return int(result) if result is not None else None
 
@@ -351,8 +354,7 @@ class ZoneManager:
             row_id = self._resolve_row_id(layer)
             if row_id is None:
                 continue
-            row = self._find_row(row_id)
-            if row:
+            if row := self._find_row(row_id):
                 self._rows.remove(row)
                 self._unregister(row_id)
         self._grid.update()
@@ -449,8 +451,7 @@ class ZoneManager:
             row_id = self._resolve_row_id(layer)
             if row_id is None:
                 continue
-            row = self._find_row(row_id)
-            if row:
+            if row := self._find_row(row_id):
                 center = layer["_latlng"]
                 row["lat"] = center["lat"]
                 row["lng"] = center["lng"]

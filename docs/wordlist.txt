@@ -13,8 +13,11 @@ ctcss
 Cython
 dmypy
 docstrings
+editmove
+editresize
 epub
 errorlevel
+FIPS
 furo
 genindex
 htmlcov
