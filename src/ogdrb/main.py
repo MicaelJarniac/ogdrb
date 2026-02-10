@@ -407,6 +407,11 @@ class ZoneManager:
         }
         await self._js_set_circle_colors(color_map)
 
+    async def handle_grid_ready(self, _e: GenericEventArguments) -> None:
+        """Grid rebuilt -> reset all circle colors (rebuild clears selection)."""
+        color_map = dict.fromkeys(self._leaflet_to_row, "blue")
+        await self._js_set_circle_colors(color_map)
+
     # -- Button actions ---------------------------------------------------------
 
     async def add_zone(self) -> None:
@@ -756,6 +761,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     m.on("circle-click", zm.handle_circle_click)
     aggrid.on("cellValueChanged", zm.handle_cell_value_changed)
     aggrid.on("rowSelected", zm.handle_selection_changed)
+    aggrid.on("gridReady", zm.handle_grid_ready)
 
     with ui.row():
         ui.button("New zone", on_click=zm.add_zone).props(
