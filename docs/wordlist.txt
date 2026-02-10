@@ -1,5 +1,6 @@
 addopts
 aggrid
+anyio
 APRS
 autosummary
 balham
@@ -23,6 +24,7 @@ genindex
 htmlcov
 ignorelist
 intersphinx
+ipykernel
 ipynb
 ipython
 Jarniac
@@ -44,6 +46,8 @@ popd
 pushd
 pybuilder
 pycache
+pycountry
+pydantic
 pydocstyle
 pyenv
 pyflow
@@ -63,6 +67,7 @@ SPHINXOPTS
 Spyder
 spyderproject
 spyproject
+sqlmodel
 timeslot
 toctree
 unittests
