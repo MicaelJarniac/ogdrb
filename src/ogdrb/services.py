@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 __all__: tuple[str, ...] = (
+    "US_COUNTRY_CODE",
+    "US_COUNTRY_NAME",
     "UniRepeater",
     "build_export_queries",
     "get_repeaters",
@@ -11,6 +13,8 @@ __all__: tuple[str, ...] = (
 
 from typing import TYPE_CHECKING
 
+import anyio
+import pycountry
 from anyio import Path
 from attrs import evolve, field, frozen
 from repeaterbook import Repeater, RepeaterBook, queries
@@ -27,6 +31,20 @@ if TYPE_CHECKING:  # pragma: no cover
     from opengd77.models import AnalogChannel, DigitalChannel
     from repeaterbook.utils import Radius
     from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
+
+
+# US country constants
+_US_COUNTRY_OBJ = pycountry.countries.lookup("US")
+US_COUNTRY_CODE = "US"  # Alpha-2 code for use in comparisons
+US_COUNTRY_NAME = _US_COUNTRY_OBJ.name  # "United States" - for database queries
+
+# Module-level service instances (reused across calls)
+_RB_API = RepeaterBookAPI(
+    app_name="ogdrb",
+    app_email="micael@jarniac.dev",
+    working_dir=Path(),
+)
+_RB = RepeaterBook(working_dir=Path())
 
 
 @frozen
@@ -64,7 +82,8 @@ def build_export_queries(
         return [export]
 
     if not us_state_ids:
-        return [export]
+        msg = "US states must be selected when US is in countries"
+        raise ValueError(msg)
 
     queries_: list[ExportQuery] = []
     non_us_countries = frozenset(
@@ -91,23 +110,18 @@ def build_export_queries(
 
 
 async def get_repeaters(
-    export: ExportQuery,
     zones: dict[str, Radius],
-    *,
-    us_state_ids: frozenset[str] = frozenset(),
 ) -> dict[str, list[UniRepeater]]:
-    """Get repeaters from RepeaterBook API."""
-    await prepare_local_repeaters(export, us_state_ids=us_state_ids)
+    """Query repeaters from local database by zone.
 
-    rb = RepeaterBook(
-        working_dir=Path(),
-    )
-
+    NOTE: Expects the database to be pre-populated via prepare_local_repeaters().
+    The UI should call prepare_local_repeaters() before calling this function.
+    """
     return {
         name: [
             UniRepeater.from_rb(r)
             for r in queries.filter_radius(
-                rb.query(
+                _RB.query(
                     queries.square(radius),
                     Repeater.dmr_capable | Repeater.analog_capable,
                     Repeater.operational_status == Status.ON_AIR,
@@ -127,26 +141,28 @@ async def prepare_local_repeaters(
     *,
     us_state_ids: frozenset[str] = frozenset(),
 ) -> list[Repeater]:
-    """Download repeaters and populate local database for the selected filters."""
-    rb_api = RepeaterBookAPI(
-        app_name="ogdrb",
-        app_email="micael@jarniac.dev",
-        working_dir=Path(),
-    )
+    """Download repeaters and populate local database for the selected filters.
 
+    Downloads are performed in parallel for faster processing when multiple
+    queries are needed (e.g., multiple US states).
+    """
     all_repeaters: list[Repeater] = []
-    for query in build_export_queries(export, us_state_ids=us_state_ids):
-        all_repeaters.extend(await rb_api.download(query=query))
+
+    async def _download_one(query: ExportQuery) -> None:
+        result = await _RB_API.download(query=query)
+        all_repeaters.extend(result)
+
+    queries_list = build_export_queries(export, us_state_ids=us_state_ids)
+    async with anyio.create_task_group() as tg:
+        for query in queries_list:
+            tg.start_soon(_download_one, query)
 
     unique_repeaters = {
         (repeater.country or "", repeater.state_id, repeater.repeater_id): repeater
         for repeater in all_repeaters
     }
 
-    rb = RepeaterBook(
-        working_dir=Path(),
-    )
-    rb.populate(unique_repeaters.values())
+    _RB.populate(unique_repeaters.values())
 
     country_names = {country.name for country in export.countries}
     where: list[BinaryExpression[bool] | ColumnElement[bool]] = []
@@ -155,9 +171,9 @@ async def prepare_local_repeaters(
     if us_state_ids:
         where.append(
             or_(
-                Repeater.country != "United States",
+                Repeater.country != US_COUNTRY_NAME,
                 col(Repeater.state_id).in_(us_state_ids),
             )
         )
 
-    return list(rb.query(*where))
+    return list(_RB.query(*where))

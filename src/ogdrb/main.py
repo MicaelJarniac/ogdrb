@@ -7,7 +7,7 @@ __all__: tuple[str, ...] = ()
 import json
 import os
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 
 import pycountry
 import us  # type: ignore[import-untyped]
@@ -21,7 +21,7 @@ from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
 from ogdrb.organizer import organize
-from ogdrb.services import get_repeaters, prepare_local_repeaters
+from ogdrb.services import US_COUNTRY_CODE, get_repeaters, prepare_local_repeaters
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.elements.aggrid import AgGrid
@@ -59,16 +59,15 @@ class ZoneRow(TypedDict):
     radius: float
 
 
-class AGColumnDef(TypedDict, total=False):
+class AGColumnDef(TypedDict):
     """AG Grid column definition."""
 
     field: str
     headerName: str
-    editable: bool
-    hide: bool
+    editable: NotRequired[bool]
+    hide: NotRequired[bool]
 
 
-US_COUNTRY = "US"
 CountrySelection = tuple[frozenset[str], frozenset[str], set[Country]]
 US_STATE_FIPS = list(us.states.STATES) + list(us.states.TERRITORIES) + [us.states.DC]
 US_STATES = {
@@ -87,11 +86,22 @@ class ZoneManager:
     - Selection changes only update circle colors (single batched JS call).
     """
 
+    @classmethod
+    async def create(cls, leaflet: Leaflet, grid: AgGrid) -> ZoneManager:
+        """Create and initialize a ZoneManager instance.
+
+        This factory ensures the manager is fully initialized before use.
+        """
+        instance = cls(leaflet, grid)
+        await instance.init()
+        return instance
+
     def __init__(self, leaflet: Leaflet, grid: AgGrid) -> None:
         self._map_id = leaflet.id
         self._grid = grid
         self._grid_id = grid.id
         self._rows: list[ZoneRow] = grid.options["rowData"]
+        self._rows_by_id: dict[int, ZoneRow] = {}  # O(1) row lookups
         self._row_to_leaflet: dict[int, int] = {}
         self._leaflet_to_row: dict[int, int] = {}
         self._next_id = 1
@@ -107,11 +117,22 @@ class ZoneManager:
         await ui.run_javascript(
             f"""
             (() => {{
+                // Helper to find draw group (cached or dynamic lookup)
+                function getDrawGroup(map) {{
+                    if (!map._ogdrb_drawGroup) {{
+                        map._ogdrb_drawGroup = Object.values(map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        ) || null;
+                    }}
+                    return map._ogdrb_drawGroup;
+                }}
+
                 const el = getElement('{self._map_id}');
                 if (el && el.map) {{
-                    el.map._ogdrb_drawGroup = Object.values(el.map._layers).find(
-                        l => l instanceof L.FeatureGroup && !l.id
-                    ) || null;
+                    // Try to cache it now, but the helper above will retry if needed
+                    getDrawGroup(el.map);
+                    // Make helper globally accessible for other JS calls
+                    el.map._getDrawGroup = () => getDrawGroup(el.map);
                 }}
 
                 // Monkey-patch: NiceGUI's minified Leaflet Draw bundle has a bug
@@ -173,6 +194,7 @@ class ZoneManager:
             self._leaflet_to_row.pop(leaflet_id, None)
 
     def _find_row(self, row_id: int) -> ZoneRow | None:
+        """Find row by ID (O(n) linear search through self._rows)."""
         return next((r for r in self._rows if r["id"] == row_id), None)
 
     def _resolve_row_id(self, layer: dict[str, Any]) -> int | None:
@@ -215,7 +237,12 @@ class ZoneManager:
             (() => {{
                 try {{
                     const mapEl = getElement('{self._map_id}');
-                    const group = mapEl && mapEl.map && mapEl.map._ogdrb_drawGroup;
+                    if (!mapEl || !mapEl.map) return null;
+                    const group = mapEl.map._getDrawGroup
+                        ? mapEl.map._getDrawGroup()
+                        : Object.values(mapEl.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
                     if (!group) return null;
                     const c = L.circle([{lat}, {lng}], {{
                         radius: {radius_m}, color: '{color}'
@@ -243,7 +270,12 @@ class ZoneManager:
             (() => {{
                 try {{
                     const el = getElement('{self._map_id}');
-                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!el || !el.map) return;
+                    const group = el.map._getDrawGroup
+                        ? el.map._getDrawGroup()
+                        : Object.values(el.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
                     if (!group) return;
                     for (const id of {ids_json}) {{
                         const c = group.getLayer(id);
@@ -264,7 +296,12 @@ class ZoneManager:
             (() => {{
                 try {{
                     const el = getElement('{self._map_id}');
-                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!el || !el.map) return;
+                    const group = el.map._getDrawGroup
+                        ? el.map._getDrawGroup()
+                        : Object.values(el.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
                     if (!group) return;
                     const c = group.getLayer({leaflet_id});
                     if (c) {{ c.setLatLng([{lat}, {lng}]); c.setRadius({radius_m}); }}
@@ -284,7 +321,12 @@ class ZoneManager:
             (() => {{
                 try {{
                     const el = getElement('{self._map_id}');
-                    const group = el && el.map && el.map._ogdrb_drawGroup;
+                    if (!el || !el.map) return;
+                    const group = el.map._getDrawGroup
+                        ? el.map._getDrawGroup()
+                        : Object.values(el.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
                     if (!group) return;
                     const m = {entries_json};
                     for (const [id, color] of Object.entries(m)) {{
@@ -304,7 +346,12 @@ class ZoneManager:
             (() => {{
                 try {{
                     const mapEl = getElement('{self._map_id}');
-                    const group = mapEl && mapEl.map && mapEl.map._ogdrb_drawGroup;
+                    if (!mapEl || !mapEl.map) return;
+                    const group = mapEl.map._getDrawGroup
+                        ? mapEl.map._getDrawGroup()
+                        : Object.values(mapEl.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
                     if (!group) return;
                     const c = group.getLayer({leaflet_id});
                     if (!c) return;
@@ -351,15 +398,15 @@ class ZoneManager:
         radius_m = layer["_mRadius"]
 
         row_id = self._new_id()
-        self._rows.append(
-            ZoneRow(
-                id=row_id,
-                name="New Zone",
-                lat=center["lat"],
-                lng=center["lng"],
-                radius=radius_m / 1000,
-            )
+        new_row = ZoneRow(
+            id=row_id,
+            name="New Zone",
+            lat=center["lat"],
+            lng=center["lng"],
+            radius=radius_m / 1000,
         )
+        self._rows.append(new_row)
+        self._rows_by_id[row_id] = new_row
 
         if leaflet_id is not None:
             # NiceGUI already added the circle; just register and set up click handler.
@@ -391,6 +438,7 @@ class ZoneManager:
                 continue
             if row := self._find_row(row_id):
                 self._rows.remove(row)
+                self._rows_by_id.pop(row_id, None)
                 self._unregister(row_id)
 
     # -- Grid event handlers ----------------------------------------------------
@@ -409,6 +457,7 @@ class ZoneManager:
             radius=float(data["radius"]),
         )
         self._rows[:] = [new_row if r["id"] == row_id else r for r in self._rows]
+        self._rows_by_id[row_id] = new_row
 
         if old_row is not None:
             geometry_changed = (
@@ -455,9 +504,9 @@ class ZoneManager:
     async def add_zone(self) -> None:
         """Add a new zone from the 'New zone' button."""
         row_id = self._new_id()
-        self._rows.append(
-            ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
-        )
+        new_row = ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
+        self._rows.append(new_row)
+        self._rows_by_id[row_id] = new_row
         leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0, row_id)
         if leaflet_id is not None:
             self._register(row_id, leaflet_id)
@@ -476,6 +525,7 @@ class ZoneManager:
         ]
         await self._js_remove_circles(leaflet_ids)
         for row_id in selected_ids:
+            self._rows_by_id.pop(row_id, None)
             self._unregister(row_id)
         self._rows[:] = [r for r in self._rows if r["id"] not in selected_ids]
 
@@ -506,7 +556,7 @@ class ZoneManager:
 
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
-    repeater_cluster = None
+    repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
         selected_country_codes = frozenset(select_country.value or ())
@@ -522,7 +572,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Please select at least one country.", type="warning")
             select_country.props("error")
             return None
-        us_selected = US_COUNTRY in selected_country_codes
+        us_selected = US_COUNTRY_CODE in selected_country_codes
         if us_selected and not selected_us_states:
             ui.notify("Please select at least one US state.", type="warning")
             select_us_state.props("error")
@@ -586,7 +636,6 @@ async def index() -> None:  # noqa: C901, PLR0915
         filters = validate_filters()
         if not filters:
             return
-        _, selected_us_states, countries = filters
         zone_rows = zm.rows
         if not zone_rows:
             ui.notify("Please add at least one zone.", type="warning")
@@ -598,16 +647,14 @@ async def index() -> None:  # noqa: C901, PLR0915
         loading.set_visibility(True)
         try:
             repeaters_by_zone = await get_repeaters(
-                export=ExportQuery(countries=frozenset(countries)),
                 zones={
                     row["name"]: Radius(
-                        origin=LatLon(row["lat"], row["lng"]),
+                        origin=LatLon(lat=row["lat"], lon=row["lng"]),
                         distance=row["radius"],
                         unit=Unit.KILOMETERS,
                     )
                     for row in zone_rows
                 },
-                us_state_ids=selected_us_states,
             )
             codeplug = organize(repeaters_by_zone)
         except ValueError as e:
@@ -646,7 +693,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         select_us_state.set_visibility(False)
 
         def sync_us_states_visibility() -> None:
-            us_selected = US_COUNTRY in set(select_country.value or ())
+            us_selected = US_COUNTRY_CODE in set(select_country.value or ())
             select_us_state.set_visibility(us_selected)
             if not us_selected:
                 select_us_state.set_value([])
@@ -661,11 +708,13 @@ async def index() -> None:  # noqa: C901, PLR0915
         loading.set_visibility(False)
 
     with ui.footer():
+        # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
             f"<a href='{ExternalURLs.GITHUB}' target='_blank'>"
             "OGDRB by MicaelJarniac</a>",
             sanitize=False,
         ).classes("text-sm")
+        # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
             "This app is not affiliated "
             f"with <a href='{ExternalURLs.OPENGD77}' target='_blank'>OpenGD77</a> "
@@ -673,6 +722,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             "RepeaterBook</a>.",
             sanitize=False,
         )
+        # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
             "All repeater data is from "
             f"<a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>RepeaterBook</a>, "
@@ -789,7 +839,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         theme="balham",
     )
 
-    zm = ZoneManager(m, aggrid)
+    zm = await ZoneManager.create(m, aggrid)
 
     m.on("draw:created", zm.handle_draw_created)
     m.on("draw:edited", zm.handle_draw_edited)
@@ -813,7 +863,6 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
 
     await m.initialized()
-    await zm.init()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
