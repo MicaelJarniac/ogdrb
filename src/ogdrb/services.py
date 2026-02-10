@@ -112,7 +112,7 @@ async def get_repeaters(
                     Repeater.dmr_capable | Repeater.analog_capable,
                     Repeater.operational_status == Status.ON_AIR,
                     Repeater.use_membership == Use.OPEN,
-                    queries.band(Bands.M_2, Bands.CM_70),
+                    queries.band(Bands.M_2.value, Bands.CM_70.value),
                     or_(*(Repeater.fm_bandwidth == bw for bw in BANDWIDTH)),
                 ),
                 radius,
