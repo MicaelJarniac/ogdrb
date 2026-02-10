@@ -87,16 +87,15 @@ class ZoneManager:
     - Selection changes only update circle colors (single batched JS call).
     """
 
-    def __init__(self, leaflet: Leaflet, grid: AgGrid, rows: list[ZoneRow]) -> None:
+    def __init__(self, leaflet: Leaflet, grid: AgGrid) -> None:
         self._map_id = leaflet.id
         self._grid = grid
         self._grid_id = grid.id
-        self._rows = rows
+        self._rows: list[ZoneRow] = grid.options["rowData"]
         self._row_to_leaflet: dict[int, int] = {}
         self._leaflet_to_row: dict[int, int] = {}
         self._next_id = 1
-        self._pending_grid_update = False
-        self._grid_update_timer: object | None = None
+        self._flush_timer: object | None = None
 
     @property
     def rows(self) -> list[ZoneRow]:
@@ -336,17 +335,15 @@ class ZoneManager:
             if new_lid is not None:
                 self._register(row_id, new_lid)
 
-        self._grid.update()
-
     async def handle_draw_edited(self, e: GenericEventArguments) -> None:
         """Circles edited on map (edit completed) -> update rows."""
         self._update_rows_from_layers(self._iter_event_layers(e))
-        self._grid.update()
 
     async def handle_draw_edit_move_or_resize(self, e: GenericEventArguments) -> None:
         """Circle being moved/resized (during edit) -> debounced row update."""
-        self._update_rows_from_layers(self._iter_event_layers(e))
-        self._schedule_grid_update()
+        with self._grid.props.suspend_updates():
+            self._update_rows_from_layers(self._iter_event_layers(e))
+        self._schedule_grid_flush()
 
     async def handle_draw_deleted(self, e: GenericEventArguments) -> None:
         """Circles deleted on map -> remove rows."""
@@ -357,7 +354,6 @@ class ZoneManager:
             if row := self._find_row(row_id):
                 self._rows.remove(row)
                 self._unregister(row_id)
-        self._grid.update()
 
     # -- Grid event handlers ----------------------------------------------------
 
@@ -391,8 +387,6 @@ class ZoneManager:
                     new_row["radius"] * 1000,
                 )
 
-        self._grid.update()
-
     async def handle_circle_click(self, e: GenericEventArguments) -> None:
         """Circle clicked on map -> select the corresponding row in the grid."""
         row_id = e.args.get("row_id")
@@ -424,7 +418,6 @@ class ZoneManager:
         leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0, row_id)
         if leaflet_id is not None:
             self._register(row_id, leaflet_id)
-        self._grid.update()
 
     async def delete_selected(self) -> None:
         """Delete selected zones from grid and map."""
@@ -442,7 +435,6 @@ class ZoneManager:
         for row_id in selected_ids:
             self._unregister(row_id)
         self._rows[:] = [r for r in self._rows if r["id"] not in selected_ids]
-        self._grid.update()
 
     # -- Private helpers --------------------------------------------------------
 
@@ -457,23 +449,20 @@ class ZoneManager:
                 row["lng"] = center["lng"]
                 row["radius"] = layer["_mRadius"] / 1000
 
-    def _schedule_grid_update(self, delay: float = 0.2) -> None:
-        self._pending_grid_update = True
-        if self._grid_update_timer is not None:
+    def _schedule_grid_flush(self, delay: float = 0.2) -> None:
+        """Schedule a single grid rebuild after a short delay (for debouncing)."""
+        if self._flush_timer is not None:
             return
 
         def flush() -> None:
-            if self._pending_grid_update:
-                self._pending_grid_update = False
-                self._grid.update()
-            self._grid_update_timer = None
+            self._grid.update()
+            self._flush_timer = None
 
-        self._grid_update_timer = ui.timer(delay, flush, once=True, immediate=False)
+        self._flush_timer = ui.timer(delay, flush, once=True, immediate=False)
 
 
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
-    rows: list[ZoneRow] = []
     repeater_cluster = None
 
     def selected_filters() -> CountrySelection:
@@ -555,10 +544,11 @@ async def index() -> None:  # noqa: C901, PLR0915
         if not filters:
             return
         _, selected_us_states, countries = filters
-        if not rows:
+        zone_rows = zm.rows
+        if not zone_rows:
             ui.notify("Please add at least one zone.", type="warning")
             return
-        if len(rows) != len({row["name"] for row in rows}):
+        if len(zone_rows) != len({row["name"] for row in zone_rows}):
             ui.notify("Duplicate zone names found.", type="warning")
             return
 
@@ -572,7 +562,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                         distance=row["radius"],
                         unit=Unit.KILOMETERS,
                     )
-                    for row in rows
+                    for row in zone_rows
                 },
                 us_state_ids=selected_us_states,
             )
@@ -630,20 +620,23 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.footer():
         ui.html(
             f"<a href='{ExternalURLs.GITHUB}' target='_blank'>"
-            "OGDRB by MicaelJarniac</a>"
+            "OGDRB by MicaelJarniac</a>",
+            sanitize=False,
         ).classes("text-sm")
         ui.html(
             "This app is not affiliated "
             f"with <a href='{ExternalURLs.OPENGD77}' target='_blank'>OpenGD77</a> "
             f"or <a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>"
-            "RepeaterBook</a>."
+            "RepeaterBook</a>.",
+            sanitize=False,
         )
         ui.html(
             "All repeater data is from "
             f"<a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>RepeaterBook</a>, "
             "using their "
             f"<a href='{ExternalURLs.REPEATERBOOK_API}' target='_blank'>"
-            "public API</a>."
+            "public API</a>.",
+            sanitize=False,
         )
 
     with ui.dialog() as dialog_help, ui.card():
@@ -746,14 +739,14 @@ async def index() -> None:  # noqa: C901, PLR0915
                 "sortable": False,
             },
             "columnDefs": columns,
-            "rowData": rows,
-            "rowSelection": "multiple",
+            "rowData": [],
+            "rowSelection": {"mode": "multiRow"},
             "stopEditingWhenCellsLoseFocus": True,
         },
-        theme="balham-dark",
+        theme="balham",
     )
 
-    zm = ZoneManager(m, aggrid, rows)
+    zm = ZoneManager(m, aggrid)
 
     m.on("draw:created", zm.handle_draw_created)
     m.on("draw:edited", zm.handle_draw_edited)
@@ -775,7 +768,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
         ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
 
-    await m.initialized(timeout=20)
+    await m.initialized()
     await zm.init()
 
 
