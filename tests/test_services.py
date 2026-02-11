@@ -5,21 +5,25 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pycountry
 import pytest
-from haversine import Unit
+from haversine import Unit  # type: ignore[import-untyped]
 from repeaterbook import Repeater
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
 from ogdrb.services import build_export_queries, get_repeaters, prepare_local_repeaters
 
+if TYPE_CHECKING:
+    from pycountry.db import Country
+
 
 def test_build_export_queries_without_us() -> None:
     """Keep a single query when USA is not selected."""
-    canada = pycountry.countries.lookup("CA")
+    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
     query = ExportQuery(countries=frozenset((canada,)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"CA"}))
@@ -29,8 +33,8 @@ def test_build_export_queries_without_us() -> None:
 
 def test_build_export_queries_split_us_states() -> None:
     """Split USA query into one request per selected state."""
-    usa = pycountry.countries.lookup("US")
-    canada = pycountry.countries.lookup("CA")
+    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
+    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
     query = ExportQuery(countries=frozenset((usa, canada)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"CA", "NY"}))
@@ -45,7 +49,7 @@ def test_build_export_queries_split_us_states() -> None:
 
 def test_build_export_queries_raises_on_us_without_states() -> None:
     """Raise ValueError when US is selected but no states provided."""
-    usa = pycountry.countries.lookup("US")
+    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
     query = ExportQuery(countries=frozenset((usa,)))
 
     with pytest.raises(ValueError, match="US states must be selected"):
@@ -55,7 +59,7 @@ def test_build_export_queries_raises_on_us_without_states() -> None:
 @pytest.mark.anyio
 async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
     """Test that prepare_local_repeaters downloads, deduplicates, and populates."""
-    canada = pycountry.countries.lookup("CA")
+    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
     query = ExportQuery(countries=frozenset((canada,)))
 
     # Create mock repeaters with duplicates

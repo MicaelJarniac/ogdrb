@@ -4,7 +4,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ogdrb.main import ZoneManager, ZoneRow
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class MockLeaflet:
@@ -24,7 +29,7 @@ class MockGrid:
 
 def test_zone_manager_id_generation() -> None:
     """Test that _new_id() generates sequential IDs."""
-    zm = ZoneManager(MockLeaflet(), MockGrid())
+    zm = ZoneManager(MockLeaflet(), MockGrid())  # type: ignore[arg-type]
 
     assert zm._new_id() == 1
     assert zm._new_id() == 2
@@ -33,7 +38,7 @@ def test_zone_manager_id_generation() -> None:
 
 def test_zone_manager_register_unregister() -> None:
     """Test bidirectional ID mapping."""
-    zm = ZoneManager(MockLeaflet(), MockGrid())
+    zm = ZoneManager(MockLeaflet(), MockGrid())  # type: ignore[arg-type]
 
     # Register mapping
     zm._register(row_id=100, leaflet_id=200)
@@ -55,7 +60,7 @@ def test_zone_manager_row_index() -> None:
         ZoneRow(id=2, name="Zone 2", lat=30.0, lng=40.0, radius=10.0),
     ]
     grid = MockGrid(initial_rows)
-    zm = ZoneManager(MockLeaflet(), grid)
+    zm = ZoneManager(MockLeaflet(), grid)  # type: ignore[arg-type]
 
     # Manually populate the index (normally done by event handlers)
     for row in initial_rows:
@@ -78,7 +83,7 @@ def test_zone_manager_row_index() -> None:
 
 def test_zone_manager_resolve_row_id() -> None:
     """Test resolving row ID from layer dict."""
-    zm = ZoneManager(MockLeaflet(), MockGrid())
+    zm = ZoneManager(MockLeaflet(), MockGrid())  # type: ignore[arg-type]
     zm._register(row_id=100, leaflet_id=200)
 
     # Resolve via leaflet_id mapping
@@ -94,7 +99,7 @@ def test_zone_manager_resolve_row_id() -> None:
     assert zm._resolve_row_id(layer3) == 100
 
     # Resolve with neither
-    layer4 = {}
+    layer4: dict[str, Any] = {}
     assert zm._resolve_row_id(layer4) is None
 
 
@@ -104,7 +109,7 @@ def test_zone_manager_update_rows_from_layers() -> None:
         ZoneRow(id=1, name="Zone 1", lat=10.0, lng=20.0, radius=5.0),
     ]
     grid = MockGrid(initial_rows)
-    zm = ZoneManager(MockLeaflet(), grid)
+    zm = ZoneManager(MockLeaflet(), grid)  # type: ignore[arg-type]
 
     # Manually populate the index
     zm._rows_by_id[1] = initial_rows[0]
