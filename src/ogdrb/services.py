@@ -12,7 +12,7 @@ __all__: tuple[str, ...] = (
     "prepare_local_repeaters",
 )
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import anyio
 import pycountry
@@ -31,12 +31,13 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Self
 
     from opengd77.models import AnalogChannel, DigitalChannel
+    from pycountry.db import Country
     from repeaterbook.utils import Radius
     from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
 
 # US country constants
-_US_COUNTRY_OBJ = pycountry.countries.lookup("US")
+_US_COUNTRY_OBJ = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
 US_COUNTRY_CODE = "US"  # Alpha-2 code for use in comparisons
 US_COUNTRY_NAME = _US_COUNTRY_OBJ.name  # "United States" - for database queries
 
@@ -186,7 +187,7 @@ def get_repeaters(
             )
         )
 
-    result = {}
+    result: dict[str, list[UniRepeater]] = {}
     for name, radius in zones.items():
         logger.info(
             f"Zone '{name}': lat={radius.origin.lat}, lon={radius.origin.lon}, "

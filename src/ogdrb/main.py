@@ -108,7 +108,7 @@ class ZoneManager:
         self._map_id = leaflet.id
         self._grid = grid
         self._grid_id = grid.id
-        self._rows: list[ZoneRow] = grid.options["rowData"]
+        self._rows: list[ZoneRow] = grid.options["rowData"]  # type: ignore[assignment]
         self._rows_by_id: dict[int, ZoneRow] = {}  # O(1) row lookups
         self._row_to_leaflet: dict[int, int] = {}
         self._leaflet_to_row: dict[int, int] = {}
@@ -551,9 +551,10 @@ async def index() -> None:  # noqa: C901, PLR0915
     def selected_filters() -> CountrySelection:
         selected_country_codes = frozenset(select_country.value or ())
         selected_us_states = frozenset(select_us_state.value or ())
-        countries = {
-            pycountry.countries.lookup(country) for country in selected_country_codes
-        }
+        countries = cast(
+            "set[Country]",
+            {pycountry.countries.lookup(country) for country in selected_country_codes},  # type: ignore[no-untyped-call]
+        )
         return selected_country_codes, selected_us_states, countries
 
     def validate_filters() -> CountrySelection | None:
@@ -575,7 +576,7 @@ async def index() -> None:  # noqa: C901, PLR0915
     ) -> None:
         if repeater_cluster is None:
             return
-        m.run_layer_method(repeater_cluster.id, "clearLayers")
+        m.run_layer_method(repeater_cluster.id, "clearLayers")  # type: ignore[no-untyped-call]
 
         chunk_size = 250
         compatible_count = 0
@@ -583,7 +584,7 @@ async def index() -> None:  # noqa: C901, PLR0915
 
         for i in range(0, len(repeaters), chunk_size):
             chunk = repeaters[i : i + chunk_size]
-            markers = []
+            markers: list[str] = []
             for repeater in chunk:
                 lat = float(repeater.latitude)
                 lng = float(repeater.longitude)
@@ -641,7 +642,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                     )
                 markers.append(marker)
             markers_expr = f"[{', '.join(markers)}]"
-            m.run_layer_method(repeater_cluster.id, ":addLayers", markers_expr)
+            m.run_layer_method(repeater_cluster.id, ":addLayers", markers_expr)  # type: ignore[no-untyped-call]
 
         logger.info(
             f"Displayed {compatible_count} compatible (blue) and "
@@ -747,7 +748,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             with_input=True,
             multiple=True,
             clearable=True,
-            options={country.alpha_2: country.name for country in pycountry.countries},
+            options={country.alpha_2: country.name for country in pycountry.countries},  # type: ignore[no-untyped-call]
         ).classes("w-1/3")
         select_us_state = ui.select(
             label="Select US states",
@@ -759,7 +760,8 @@ async def index() -> None:  # noqa: C901, PLR0915
         select_us_state.set_visibility(False)
 
         def sync_us_states_visibility() -> None:
-            us_selected = US_COUNTRY_CODE in set(select_country.value or ())
+            selected_countries = frozenset(cast("set[str]", select_country.value) or ())
+            us_selected = US_COUNTRY_CODE in selected_countries
             select_us_state.set_visibility(us_selected)
             if not us_selected:
                 select_us_state.set_value([])
@@ -933,7 +935,7 @@ async def index() -> None:  # noqa: C901, PLR0915
 
 if __name__ in {"__main__", "__mp_main__"}:
     settings = Settings()
-    ui.run(
+    ui.run(  # type: ignore[no-untyped-call]
         title="OGDRB",
         favicon="📡",
         storage_secret=settings.storage_secret,
