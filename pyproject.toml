@@ -78,7 +78,7 @@ pre-commit = [
     "pre-commit>=4.1.0",
 ]
 automation = [
-    "nox[uv]>=2025.2.9",
+    "nox[uv]>=2026.2.9",
 ]
 dev = [
     {include-group = "tests"},
