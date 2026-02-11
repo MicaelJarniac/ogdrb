@@ -7,16 +7,18 @@ __all__: tuple[str, ...] = (
     "US_COUNTRY_NAME",
     "UniRepeater",
     "build_export_queries",
+    "get_compatible_repeaters",
     "get_repeaters",
     "prepare_local_repeaters",
 )
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import pycountry
 from anyio import Path
 from attrs import evolve, field, frozen
+from loguru import logger
 from repeaterbook import Repeater, RepeaterBook, queries
 from repeaterbook.models import ExportQuery, Status, Use
 from repeaterbook.queries import Bands
@@ -109,6 +111,59 @@ def build_export_queries(
     return queries_
 
 
+def _compatibility_filters() -> list[Any]:
+    """Return SQL filters for repeater compatibility with OpenGD77.
+
+    These filters are used by both map display and zone export to ensure
+    consistency. Repeaters must meet ALL of these criteria:
+    - Be DMR or analog capable
+    - Have "On-air" operational status
+    - Have "Open" membership (not private/closed)
+    - Operate on 2m (144-148 MHz) or 70cm (420-450 MHz) bands
+    - Have valid FM bandwidth (12.5/25 kHz) or None (digital-only)
+    """
+    return [
+        Repeater.dmr_capable | Repeater.analog_capable,
+        Repeater.operational_status == Status.ON_AIR,
+        Repeater.use_membership == Use.OPEN,
+        queries.band(Bands.M_2.value, Bands.CM_70.value),
+        or_(
+            col(Repeater.fm_bandwidth).is_(None),
+            *(Repeater.fm_bandwidth == bw for bw in BANDWIDTH),
+        ),
+    ]
+
+
+async def get_compatible_repeaters(
+    export: ExportQuery,
+    *,
+    us_state_ids: frozenset[str] = frozenset(),
+) -> list[Repeater]:
+    """Query compatible repeaters from local database.
+
+    Returns only repeaters that pass the compatibility filters.
+    Used by the map display to determine which repeaters to show in blue vs red.
+
+    NOTE: Database must be pre-populated via prepare_local_repeaters() first.
+    """
+    country_names = {country.name for country in export.countries}
+    where: list[BinaryExpression[bool] | ColumnElement[bool]] = list(
+        _compatibility_filters()
+    )
+
+    if country_names:
+        where.append(col(Repeater.country).in_(country_names))
+    if us_state_ids:
+        where.append(
+            or_(
+                Repeater.country != US_COUNTRY_NAME,
+                col(Repeater.state_id).in_(us_state_ids),
+            )
+        )
+
+    return list(_RB.query(*where))
+
+
 async def get_repeaters(
     zones: dict[str, Radius],
 ) -> dict[str, list[UniRepeater]]:
@@ -117,23 +172,19 @@ async def get_repeaters(
     NOTE: Expects the database to be pre-populated via prepare_local_repeaters().
     The UI should call prepare_local_repeaters() before calling this function.
     """
-    return {
-        name: [
-            UniRepeater.from_rb(r)
-            for r in queries.filter_radius(
-                _RB.query(
-                    queries.square(radius),
-                    Repeater.dmr_capable | Repeater.analog_capable,
-                    Repeater.operational_status == Status.ON_AIR,
-                    Repeater.use_membership == Use.OPEN,
-                    queries.band(Bands.M_2.value, Bands.CM_70.value),
-                    or_(*(Repeater.fm_bandwidth == bw for bw in BANDWIDTH)),
-                ),
-                radius,
-            )
-        ]
-        for name, radius in zones.items()
-    }
+    result = {}
+    for name, radius in zones.items():
+        logger.info(
+            f"Zone '{name}': lat={radius.origin.lat}, lon={radius.origin.lon}, "
+            f"radius={radius.distance} {radius.unit}"
+        )
+
+        queried = _RB.query(queries.square(radius), *_compatibility_filters())
+        filtered = list(queries.filter_radius(queried, radius))
+        logger.info(f"Found {len(filtered)} repeaters in zone '{name}'")
+        result[name] = [UniRepeater.from_rb(r) for r in filtered]
+
+    return result
 
 
 async def prepare_local_repeaters(

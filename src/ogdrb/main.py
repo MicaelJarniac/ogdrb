@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 import pycountry
 import us  # type: ignore[import-untyped]
 from haversine import Unit  # type: ignore[import-untyped]
+from loguru import logger
 from nicegui import ui
 from opengd77.constants import Max
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
@@ -21,7 +22,12 @@ from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
 from ogdrb.organizer import organize
-from ogdrb.services import US_COUNTRY_CODE, get_repeaters, prepare_local_repeaters
+from ogdrb.services import (
+    US_COUNTRY_CODE,
+    get_compatible_repeaters,
+    get_repeaters,
+    prepare_local_repeaters,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from nicegui.elements.aggrid import AgGrid
@@ -579,12 +585,18 @@ async def index() -> None:  # noqa: C901, PLR0915
             return None
         return selected_country_codes, selected_us_states, countries
 
-    async def sync_repeater_markers(repeaters: list[Repeater]) -> None:
+    async def sync_repeater_markers(
+        repeaters: list[Repeater],
+        compatible_ids: set[tuple[str | None, str, int]],
+    ) -> None:
         if repeater_cluster is None:
             return
         m.run_layer_method(repeater_cluster.id, "clearLayers")
 
         chunk_size = 250
+        compatible_count = 0
+        incompatible_count = 0
+
         for i in range(0, len(repeaters), chunk_size):
             chunk = repeaters[i : i + chunk_size]
             markers = []
@@ -596,22 +608,61 @@ async def index() -> None:  # noqa: C901, PLR0915
                 state = repeater.state or ""
                 country = repeater.country or ""
                 frequency = str(repeater.frequency)
+
+                # Check if repeater is in the compatible set
+                repeater_id = (
+                    repeater.country,
+                    repeater.state_id,
+                    repeater.repeater_id,
+                )
+                compatible = repeater_id in compatible_ids
+                if compatible:
+                    compatible_count += 1
+                else:
+                    incompatible_count += 1
+
+                # Create marker with custom icon for incompatible repeaters
                 title = f"{callsign} ({frequency} MHz)"
+                status = "" if compatible else " ⚠️ INCOMPATIBLE"
                 popup = (
-                    f"<b>{callsign}</b><br>"
+                    f"<b>{callsign}</b>{status}<br>"
                     f"{city}, {state}<br>"
                     f"{country}<br>"
                     f"{frequency} MHz"
                 )
-                marker = (
-                    "L.marker(["
-                    f"{lat}, {lng}"
-                    f"], {{title: {json.dumps(title)}}})"
-                    f".bindPopup({json.dumps(popup)})"
-                )
+
+                if not compatible:
+                    # Use divIcon with red background for incompatible repeaters
+                    icon_js = (
+                        "L.divIcon({className: 'custom-div-icon', "
+                        'html: \'<div style="background-color:#c0392b;'
+                        "border-radius:50%;width:12px;height:12px;"
+                        'border:2px solid white;box-shadow:0 0 4px '
+                        'rgba(0,0,0,0.4);"></div>\', '
+                        "iconSize: [16, 16], iconAnchor: [8, 8]})"
+                    )
+                    marker = (
+                        "L.marker(["
+                        f"{lat}, {lng}"
+                        f"], {{title: {json.dumps(title)}, icon: {icon_js}}})"
+                        f".bindPopup({json.dumps(popup)})"
+                    )
+                else:
+                    # Use default marker for compatible repeaters
+                    marker = (
+                        "L.marker(["
+                        f"{lat}, {lng}"
+                        f"], {{title: {json.dumps(title)}}})"
+                        f".bindPopup({json.dumps(popup)})"
+                    )
                 markers.append(marker)
             markers_expr = f"[{', '.join(markers)}]"
             m.run_layer_method(repeater_cluster.id, ":addLayers", markers_expr)
+
+        logger.info(
+            f"Displayed {compatible_count} compatible (blue) and "
+            f"{incompatible_count} incompatible (red) repeaters"
+        )
 
     async def populate_repeaters() -> None:
         filters = validate_filters()
@@ -620,17 +671,34 @@ async def index() -> None:  # noqa: C901, PLR0915
         _, selected_us_states, countries = filters
         loading.set_visibility(True)
         try:
-            repeaters = await prepare_local_repeaters(
+            # Query 1: ALL repeaters (for map display)
+            all_repeaters = await prepare_local_repeaters(
                 export=ExportQuery(countries=frozenset(countries)),
                 us_state_ids=selected_us_states,
             )
-            await sync_repeater_markers(repeaters)
+
+            # Query 2: COMPATIBLE repeaters only (for determining colors)
+            compatible_repeaters = await get_compatible_repeaters(
+                export=ExportQuery(countries=frozenset(countries)),
+                us_state_ids=selected_us_states,
+            )
+
+            # Build set of compatible IDs for O(1) lookup
+            compatible_ids = {
+                (r.country, r.state_id, r.repeater_id) for r in compatible_repeaters
+            }
+
+            await sync_repeater_markers(all_repeaters, compatible_ids)
         except ValueError as e:
             ui.notify(f"Error: {e}", type="negative")
             return
         finally:
             loading.set_visibility(False)
-        ui.notify(f"Loaded {len(repeaters)} repeaters.", type="positive")
+        ui.notify(
+            f"Loaded {len(all_repeaters)} repeaters "
+            f"({len(compatible_ids)} compatible).",
+            type="positive",
+        )
 
     async def export() -> None:
         filters = validate_filters()
@@ -644,6 +712,13 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Duplicate zone names found.", type="warning")
             return
 
+        logger.info(f"Exporting {len(zone_rows)} zones:")
+        for row in zone_rows:
+            logger.info(
+                f"  Zone '{row['name']}': lat={row['lat']}, lng={row['lng']}, "
+                f"radius={row['radius']} km"
+            )
+
         loading.set_visibility(True)
         try:
             repeaters_by_zone = await get_repeaters(
@@ -656,6 +731,9 @@ async def index() -> None:  # noqa: C901, PLR0915
                     for row in zone_rows
                 },
             )
+            logger.info(f"Retrieved repeaters for {len(repeaters_by_zone)} zones:")
+            for zone_name, repeaters in repeaters_by_zone.items():
+                logger.info(f"  Zone '{zone_name}': {len(repeaters)} repeaters")
             codeplug = organize(repeaters_by_zone)
         except ValueError as e:
             ui.notify(f"Error: {e}", type="negative")
