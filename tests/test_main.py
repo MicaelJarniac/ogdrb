@@ -108,7 +108,6 @@ def test_zone_manager_update_rows_from_layers() -> None:
 
     # Manually populate the index
     zm._rows_by_id[1] = initial_rows[0]
-    old_row_ref = initial_rows[0]  # Store reference to original dict
 
     # Simulate layer data from Leaflet
     layers = [

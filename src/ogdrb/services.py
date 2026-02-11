@@ -134,7 +134,7 @@ def _compatibility_filters() -> list[Any]:
     ]
 
 
-async def get_compatible_repeaters(
+def get_compatible_repeaters(
     export: ExportQuery,
     *,
     us_state_ids: frozenset[str] = frozenset(),
@@ -164,14 +164,28 @@ async def get_compatible_repeaters(
     return list(_RB.query(*where))
 
 
-async def get_repeaters(
+def get_repeaters(
     zones: dict[str, Radius],
+    *,
+    country_names: frozenset[str] = frozenset(),
+    us_state_ids: frozenset[str] = frozenset(),
 ) -> dict[str, list[UniRepeater]]:
     """Query repeaters from local database by zone.
 
     NOTE: Expects the database to be pre-populated via prepare_local_repeaters().
     The UI should call prepare_local_repeaters() before calling this function.
     """
+    extra_filters: list[BinaryExpression[bool] | ColumnElement[bool]] = []
+    if country_names:
+        extra_filters.append(col(Repeater.country).in_(country_names))
+    if us_state_ids:
+        extra_filters.append(
+            or_(
+                Repeater.country != US_COUNTRY_NAME,
+                col(Repeater.state_id).in_(us_state_ids),
+            )
+        )
+
     result = {}
     for name, radius in zones.items():
         logger.info(
@@ -179,7 +193,9 @@ async def get_repeaters(
             f"radius={radius.distance} {radius.unit}"
         )
 
-        queried = _RB.query(queries.square(radius), *_compatibility_filters())
+        queried = _RB.query(
+            queries.square(radius), *_compatibility_filters(), *extra_filters
+        )
         filtered = list(queries.filter_radius(queried, radius))
         logger.info(f"Found {len(filtered)} repeaters in zone '{name}'")
         result[name] = [UniRepeater.from_rb(r) for r in filtered]
@@ -197,11 +213,11 @@ async def prepare_local_repeaters(
     Downloads are performed in parallel for faster processing when multiple
     queries are needed (e.g., multiple US states).
     """
-    all_repeaters: list[Repeater] = []
+    results: list[list[Repeater]] = []
 
     async def _download_one(query: ExportQuery) -> None:
         result = await _RB_API.download(query=query)
-        all_repeaters.extend(result)
+        results.append(result)
 
     queries_list = build_export_queries(export, us_state_ids=us_state_ids)
     async with anyio.create_task_group() as tg:
@@ -210,7 +226,8 @@ async def prepare_local_repeaters(
 
     unique_repeaters = {
         (repeater.country or "", repeater.state_id, repeater.repeater_id): repeater
-        for repeater in all_repeaters
+        for batch in results
+        for repeater in batch
     }
 
     _RB.populate(unique_repeaters.values())

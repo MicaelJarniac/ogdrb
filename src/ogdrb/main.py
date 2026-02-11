@@ -77,7 +77,9 @@ class AGColumnDef(TypedDict):
 CountrySelection = tuple[frozenset[str], frozenset[str], set[Country]]
 US_STATE_FIPS = list(us.states.STATES) + list(us.states.TERRITORIES) + [us.states.DC]
 US_STATES = {
-    state.fips: state.name for state in sorted(US_STATE_FIPS, key=lambda s: s.name)
+    state.fips: state.name
+    for state in sorted(US_STATE_FIPS, key=lambda s: s.name)
+    if state.fips is not None
 }
 
 
@@ -135,11 +137,23 @@ class ZoneManager:
 
                 const el = getElement('{self._map_id}');
                 if (el && el.map) {{
-                    // Try to cache it now, but the helper above will retry if needed
                     getDrawGroup(el.map);
-                    // Make helper globally accessible for other JS calls
                     el.map._getDrawGroup = () => getDrawGroup(el.map);
                 }}
+
+                // Global helper: returns {{el, map, group}} or null.
+                // Avoids repeating the same boilerplate in every JS call.
+                window._ogdrb_ctx = function(mapId) {{
+                    const el = getElement(mapId);
+                    if (!el || !el.map) return null;
+                    const group = el.map._getDrawGroup
+                        ? el.map._getDrawGroup()
+                        : Object.values(el.map._layers).find(
+                            l => l instanceof L.FeatureGroup && !l.id
+                        );
+                    if (!group) return null;
+                    return {{el, map: el.map, group}};
+                }};
 
                 // Monkey-patch: NiceGUI's minified Leaflet Draw bundle has a bug
                 // where L.Edit.Circle._resize uses an undeclared `radius` variable.
@@ -242,19 +256,13 @@ class ZoneManager:
                 f"""
             (() => {{
                 try {{
-                    const mapEl = getElement('{self._map_id}');
-                    if (!mapEl || !mapEl.map) return null;
-                    const group = mapEl.map._getDrawGroup
-                        ? mapEl.map._getDrawGroup()
-                        : Object.values(mapEl.map._layers).find(
-                            l => l instanceof L.FeatureGroup && !l.id
-                        );
-                    if (!group) return null;
+                    const ctx = _ogdrb_ctx('{self._map_id}');
+                    if (!ctx) return null;
                     const c = L.circle([{lat}, {lng}], {{
                         radius: {radius_m}, color: '{color}'
-                    }}).addTo(group);
+                    }}).addTo(ctx.group);
                     c._ogdrb_row_id = {row_id};
-                    c.on('click', () => mapEl.$emit('circle-click', {{
+                    c.on('click', () => ctx.el.$emit('circle-click', {{
                         row_id: {row_id}
                     }}));
                     return L.stamp(c);
@@ -275,17 +283,11 @@ class ZoneManager:
             f"""
             (() => {{
                 try {{
-                    const el = getElement('{self._map_id}');
-                    if (!el || !el.map) return;
-                    const group = el.map._getDrawGroup
-                        ? el.map._getDrawGroup()
-                        : Object.values(el.map._layers).find(
-                            l => l instanceof L.FeatureGroup && !l.id
-                        );
-                    if (!group) return;
+                    const ctx = _ogdrb_ctx('{self._map_id}');
+                    if (!ctx) return;
                     for (const id of {ids_json}) {{
-                        const c = group.getLayer(id);
-                        if (c) group.removeLayer(c);
+                        const c = ctx.group.getLayer(id);
+                        if (c) ctx.group.removeLayer(c);
                     }}
                 }} catch (e) {{ console.error('_js_remove_circles', e); }}
             }})();
@@ -301,15 +303,9 @@ class ZoneManager:
             f"""
             (() => {{
                 try {{
-                    const el = getElement('{self._map_id}');
-                    if (!el || !el.map) return;
-                    const group = el.map._getDrawGroup
-                        ? el.map._getDrawGroup()
-                        : Object.values(el.map._layers).find(
-                            l => l instanceof L.FeatureGroup && !l.id
-                        );
-                    if (!group) return;
-                    const c = group.getLayer({leaflet_id});
+                    const ctx = _ogdrb_ctx('{self._map_id}');
+                    if (!ctx) return;
+                    const c = ctx.group.getLayer({leaflet_id});
                     if (c) {{ c.setLatLng([{lat}, {lng}]); c.setRadius({radius_m}); }}
                 }} catch (e) {{ console.error('_js_update_circle', e); }}
             }})();
@@ -326,17 +322,11 @@ class ZoneManager:
             f"""
             (() => {{
                 try {{
-                    const el = getElement('{self._map_id}');
-                    if (!el || !el.map) return;
-                    const group = el.map._getDrawGroup
-                        ? el.map._getDrawGroup()
-                        : Object.values(el.map._layers).find(
-                            l => l instanceof L.FeatureGroup && !l.id
-                        );
-                    if (!group) return;
+                    const ctx = _ogdrb_ctx('{self._map_id}');
+                    if (!ctx) return;
                     const m = {entries_json};
                     for (const [id, color] of Object.entries(m)) {{
-                        const c = group.getLayer(Number(id));
+                        const c = ctx.group.getLayer(Number(id));
                         if (c) c.setStyle({{ color }});
                     }}
                 }} catch (e) {{ console.error('_js_set_circle_colors', e); }}
@@ -351,18 +341,12 @@ class ZoneManager:
             f"""
             (() => {{
                 try {{
-                    const mapEl = getElement('{self._map_id}');
-                    if (!mapEl || !mapEl.map) return;
-                    const group = mapEl.map._getDrawGroup
-                        ? mapEl.map._getDrawGroup()
-                        : Object.values(mapEl.map._layers).find(
-                            l => l instanceof L.FeatureGroup && !l.id
-                        );
-                    if (!group) return;
-                    const c = group.getLayer({leaflet_id});
+                    const ctx = _ogdrb_ctx('{self._map_id}');
+                    if (!ctx) return;
+                    const c = ctx.group.getLayer({leaflet_id});
                     if (!c) return;
                     c._ogdrb_row_id = {row_id};
-                    c.on('click', () => mapEl.$emit('circle-click', {{
+                    c.on('click', () => ctx.el.$emit('circle-click', {{
                         row_id: {row_id}
                     }}));
                 }} catch (e) {{ console.error('_js_setup_circle', e); }}
@@ -635,10 +619,10 @@ async def index() -> None:  # noqa: C901, PLR0915
                     # Use divIcon with red background for incompatible repeaters
                     icon_js = (
                         "L.divIcon({className: 'custom-div-icon', "
-                        'html: \'<div style="background-color:#c0392b;'
+                        "html: '<div style=\"background-color:#c0392b;"
                         "border-radius:50%;width:12px;height:12px;"
-                        'border:2px solid white;box-shadow:0 0 4px '
-                        'rgba(0,0,0,0.4);"></div>\', '
+                        "border:2px solid white;box-shadow:0 0 4px "
+                        "rgba(0,0,0,0.4);\"></div>', "
                         "iconSize: [16, 16], iconAnchor: [8, 8]})"
                     )
                     marker = (
@@ -678,7 +662,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             )
 
             # Query 2: COMPATIBLE repeaters only (for determining colors)
-            compatible_repeaters = await get_compatible_repeaters(
+            compatible_repeaters = get_compatible_repeaters(
                 export=ExportQuery(countries=frozenset(countries)),
                 us_state_ids=selected_us_states,
             )
@@ -704,6 +688,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         filters = validate_filters()
         if not filters:
             return
+        _, selected_us_states, countries = filters
         zone_rows = zm.rows
         if not zone_rows:
             ui.notify("Please add at least one zone.", type="warning")
@@ -721,7 +706,8 @@ async def index() -> None:  # noqa: C901, PLR0915
 
         loading.set_visibility(True)
         try:
-            repeaters_by_zone = await get_repeaters(
+            country_names = frozenset(c.name for c in countries)
+            repeaters_by_zone = get_repeaters(
                 zones={
                     row["name"]: Radius(
                         origin=LatLon(lat=row["lat"], lon=row["lng"]),
@@ -730,6 +716,8 @@ async def index() -> None:  # noqa: C901, PLR0915
                     )
                     for row in zone_rows
                 },
+                country_names=country_names,
+                us_state_ids=selected_us_states,
             )
             logger.info(f"Retrieved repeaters for {len(repeaters_by_zone)} zones:")
             for zone_name, repeaters in repeaters_by_zone.items():

@@ -118,8 +118,7 @@ async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
         assert result == [repeater1, repeater3]
 
 
-@pytest.mark.anyio
-async def test_get_repeaters_queries_by_zone() -> None:
+def test_get_repeaters_queries_by_zone() -> None:
     """Test that get_repeaters queries the database by zone without re-downloading."""
     # Create a test zone
     zones = {
@@ -151,12 +150,12 @@ async def test_get_repeaters_queries_by_zone() -> None:
         # Mock query to return test repeater
         mock_rb.query = MagicMock(return_value=[repeater1])
 
-        result = await get_repeaters(zones)
+        result = get_repeaters(zones)
 
         # Verify query was called (but NOT download)
         assert mock_rb.query.called
 
         # Verify result structure
         assert "Test Zone" in result
-        assert len(result["Test Zone"]) >= 0  # May be filtered out by radius
+        assert len(result["Test Zone"]) == 1
         # The actual filtering is done by queries.filter_radius which we're not mocking
