@@ -7,6 +7,7 @@ __all__: tuple[str, ...] = ()
 import json
 import os
 from enum import StrEnum
+from html import escape
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 
 import pycountry
@@ -214,7 +215,14 @@ class ZoneManager:
             self._leaflet_to_row.pop(leaflet_id, None)
 
     def _find_row(self, row_id: int) -> ZoneRow | None:
-        """Find row by ID (O(n) linear search through self._rows)."""
+        """Find row by ID via linear scan of the canonical ``self._rows`` list.
+
+        This intentionally does *not* use ``_rows_by_id`` because AG Grid's
+        front-end shares the same ``list`` object (``rowData``).  Returning a
+        reference from the dict could silently desync from the list that the
+        grid reads, breaking UI updates.  The list is kept small (bounded by
+        ``Max.ZONES``), so the O(n) cost is negligible.
+        """
         return next((r for r in self._rows if r["id"] == row_id), None)
 
     def _resolve_row_id(self, layer: dict[str, Any]) -> int | None:
@@ -610,10 +618,10 @@ async def index() -> None:  # noqa: C901, PLR0915
                 title = f"{callsign} ({frequency} MHz)"
                 status = "" if compatible else " ⚠️ INCOMPATIBLE"
                 popup = (
-                    f"<b>{callsign}</b>{status}<br>"
-                    f"{city}, {state}<br>"
-                    f"{country}<br>"
-                    f"{frequency} MHz"
+                    f"<b>{escape(callsign)}</b>{escape(status)}<br>"
+                    f"{escape(city)}, {escape(state)}<br>"
+                    f"{escape(country)}<br>"
+                    f"{escape(frequency)} MHz"
                 )
 
                 if not compatible:

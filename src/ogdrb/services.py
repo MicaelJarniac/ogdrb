@@ -135,6 +135,24 @@ def _compatibility_filters() -> list[Any]:
     ]
 
 
+def _country_state_filters(
+    country_names: set[str] | frozenset[str],
+    us_state_ids: frozenset[str],
+) -> list[BinaryExpression[bool] | ColumnElement[bool]]:
+    """Build SQL filters that restrict results to the given countries/states."""
+    filters: list[BinaryExpression[bool] | ColumnElement[bool]] = []
+    if country_names:
+        filters.append(col(Repeater.country).in_(country_names))
+    if us_state_ids:
+        filters.append(
+            or_(
+                Repeater.country != US_COUNTRY_NAME,
+                col(Repeater.state_id).in_(us_state_ids),
+            )
+        )
+    return filters
+
+
 def get_compatible_repeaters(
     export: ExportQuery,
     *,
@@ -148,19 +166,10 @@ def get_compatible_repeaters(
     NOTE: Database must be pre-populated via prepare_local_repeaters() first.
     """
     country_names = {country.name for country in export.countries}
-    where: list[BinaryExpression[bool] | ColumnElement[bool]] = list(
-        _compatibility_filters()
-    )
-
-    if country_names:
-        where.append(col(Repeater.country).in_(country_names))
-    if us_state_ids:
-        where.append(
-            or_(
-                Repeater.country != US_COUNTRY_NAME,
-                col(Repeater.state_id).in_(us_state_ids),
-            )
-        )
+    where: list[BinaryExpression[bool] | ColumnElement[bool]] = [
+        *_compatibility_filters(),
+        *_country_state_filters(country_names, us_state_ids),
+    ]
 
     return list(_RB.query(*where))
 
@@ -176,16 +185,9 @@ def get_repeaters(
     NOTE: Expects the database to be pre-populated via prepare_local_repeaters().
     The UI should call prepare_local_repeaters() before calling this function.
     """
-    extra_filters: list[BinaryExpression[bool] | ColumnElement[bool]] = []
-    if country_names:
-        extra_filters.append(col(Repeater.country).in_(country_names))
-    if us_state_ids:
-        extra_filters.append(
-            or_(
-                Repeater.country != US_COUNTRY_NAME,
-                col(Repeater.state_id).in_(us_state_ids),
-            )
-        )
+    extra_filters = _country_state_filters(
+        frozenset(country_names) if country_names else frozenset(), us_state_ids
+    )
 
     result: dict[str, list[UniRepeater]] = {}
     for name, radius in zones.items():
@@ -214,35 +216,25 @@ async def prepare_local_repeaters(
     Downloads are performed in parallel for faster processing when multiple
     queries are needed (e.g., multiple US states).
     """
-    results: list[list[Repeater]] = []
+    results: dict[int, list[Repeater]] = {}
 
-    async def _download_one(query: ExportQuery) -> None:
-        result = await _RB_API.download(query=query)
-        results.append(result)
+    async def _download_one(query: ExportQuery, idx: int) -> None:
+        results[idx] = await _RB_API.download(query=query)
 
     queries_list = build_export_queries(export, us_state_ids=us_state_ids)
     async with anyio.create_task_group() as tg:
-        for query in queries_list:
-            tg.start_soon(_download_one, query)
+        for idx, query in enumerate(queries_list):
+            tg.start_soon(_download_one, query, idx)
 
     unique_repeaters = {
         (repeater.country or "", repeater.state_id, repeater.repeater_id): repeater
-        for batch in results
+        for batch in results.values()
         for repeater in batch
     }
 
     _RB.populate(unique_repeaters.values())
 
     country_names = {country.name for country in export.countries}
-    where: list[BinaryExpression[bool] | ColumnElement[bool]] = []
-    if country_names:
-        where.append(col(Repeater.country).in_(country_names))
-    if us_state_ids:
-        where.append(
-            or_(
-                Repeater.country != US_COUNTRY_NAME,
-                col(Repeater.state_id).in_(us_state_ids),
-            )
-        )
+    where = _country_state_filters(country_names, us_state_ids)
 
     return list(_RB.query(*where))
