@@ -12,6 +12,7 @@ Connor
 crustypy
 ctcss
 Cython
+desync
 dmypy
 docstrings
 editmove
@@ -34,6 +35,7 @@ Micael
 mkdocs
 modindex
 mypy
+nautic
 nicegui
 nosetests
 noxfile

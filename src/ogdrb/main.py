@@ -6,6 +6,7 @@ __all__: tuple[str, ...] = ()
 
 import json
 import os
+from datetime import UTC, datetime
 from enum import StrEnum
 from html import escape
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
@@ -741,7 +742,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         zip_file = csvs_to_zip(csvs)
         ui.download.content(
             content=zip_file,
-            filename="ogdrb.zip",
+            filename=f"ogdrb_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.zip",
             media_type="application/zip",
         )
 
