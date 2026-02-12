@@ -937,7 +937,10 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
-        ui.button(on_click=dialog_help.open, icon="contact_support").props("fab")
+        ui.button(
+            on_click=dialog_help.open,
+            icon="contact_support",
+        ).props("fab").mark("help-btn")
 
     await m.initialized()
 

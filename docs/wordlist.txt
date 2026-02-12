@@ -2,6 +2,7 @@ addopts
 aggrid
 anyio
 APRS
+asyncio
 autosummary
 balham
 callsign
