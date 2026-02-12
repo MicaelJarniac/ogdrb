@@ -1,5 +1,8 @@
 addopts
 aggrid
+anyio
+APRS
+asyncio
 autosummary
 balham
 callsign
@@ -8,16 +11,22 @@ circlemarker
 Codeplug
 Connor
 crustypy
+ctcss
 Cython
+desync
 dmypy
 docstrings
+editmove
+editresize
 epub
 errorlevel
+FIPS
 furo
 genindex
 htmlcov
 ignorelist
 intersphinx
+ipykernel
 ipynb
 ipython
 Jarniac
@@ -27,6 +36,7 @@ Micael
 mkdocs
 modindex
 mypy
+nautic
 nicegui
 nosetests
 noxfile
@@ -39,6 +49,8 @@ popd
 pushd
 pybuilder
 pycache
+pycountry
+pydantic
 pydocstyle
 pyenv
 pyflow
@@ -58,6 +70,8 @@ SPHINXOPTS
 Spyder
 spyderproject
 spyproject
+sqlmodel
+timeslot
 toctree
 unittests
 venv
