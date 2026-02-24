@@ -56,7 +56,6 @@ def test_build_export_queries_raises_on_us_without_states() -> None:
         build_export_queries(query, us_state_ids=frozenset())
 
 
-@pytest.mark.anyio
 async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
     """Test that prepare_local_repeaters downloads, deduplicates, and populates."""
     canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]

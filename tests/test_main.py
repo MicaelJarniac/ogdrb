@@ -54,17 +54,13 @@ def test_zone_manager_register_unregister() -> None:
 
 
 def test_zone_manager_row_index() -> None:
-    """Test O(1) row lookups with _rows_by_id index."""
+    """Test row lookups by ID."""
     initial_rows = [
         ZoneRow(id=1, name="Zone 1", lat=10.0, lng=20.0, radius=5.0),
         ZoneRow(id=2, name="Zone 2", lat=30.0, lng=40.0, radius=10.0),
     ]
     grid = MockGrid(initial_rows)
     zm = ZoneManager(MockLeaflet(), grid)  # type: ignore[arg-type]
-
-    # Manually populate the index (normally done by event handlers)
-    for row in initial_rows:
-        zm._rows_by_id[row["id"]] = row
 
     # Test lookups
     row1 = zm._find_row(1)
@@ -111,8 +107,6 @@ def test_zone_manager_update_rows_from_layers() -> None:
     grid = MockGrid(initial_rows)
     zm = ZoneManager(MockLeaflet(), grid)  # type: ignore[arg-type]
 
-    # Manually populate the index
-    zm._rows_by_id[1] = initial_rows[0]
 
     # Simulate layer data from Leaflet
     layers = [

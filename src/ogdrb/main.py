@@ -9,7 +9,7 @@ import os
 from datetime import UTC, datetime
 from enum import StrEnum
 from html import escape
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
 import pycountry
 import us  # type: ignore[import-untyped]
@@ -18,7 +18,6 @@ from loguru import logger
 from nicegui import ui
 from opengd77.constants import Max
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
-from pycountry.db import Country
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
@@ -35,6 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from nicegui.elements.aggrid import AgGrid
     from nicegui.elements.leaflet import Leaflet
     from nicegui.events import GenericEventArguments
+    from pycountry.db import Country
     from repeaterbook import Repeater
 
 
@@ -76,7 +76,14 @@ class AGColumnDef(TypedDict):
     hide: NotRequired[bool]
 
 
-CountrySelection = tuple[frozenset[str], frozenset[str], set[Country]]
+class CountrySelection(NamedTuple):
+    """Parsed filter selections."""
+
+    country_codes: frozenset[str]
+    us_states: frozenset[str]
+    countries: set[Country]
+
+
 US_STATE_FIPS = list(us.states.STATES) + list(us.states.TERRITORIES) + [us.states.DC]
 US_STATES = {
     state.fips: state.name
@@ -111,7 +118,6 @@ class ZoneManager:
         self._grid = grid
         self._grid_id = grid.id
         self._rows: list[ZoneRow] = grid.options["rowData"]  # type: ignore[assignment]
-        self._rows_by_id: dict[int, ZoneRow] = {}  # O(1) row lookups
         self._row_to_leaflet: dict[int, int] = {}
         self._leaflet_to_row: dict[int, int] = {}
         self._next_id = 1
@@ -218,11 +224,8 @@ class ZoneManager:
     def _find_row(self, row_id: int) -> ZoneRow | None:
         """Find row by ID via linear scan of the canonical ``self._rows`` list.
 
-        This intentionally does *not* use ``_rows_by_id`` because AG Grid's
-        front-end shares the same ``list`` object (``rowData``).  Returning a
-        reference from the dict could silently desync from the list that the
-        grid reads, breaking UI updates.  The list is kept small (bounded by
-        ``Max.ZONES``), so the O(n) cost is negligible.
+        The list is kept small (bounded by ``Max.ZONES``), so the O(n) cost
+        is negligible.
         """
         return next((r for r in self._rows if r["id"] == row_id), None)
 
@@ -405,7 +408,6 @@ class ZoneManager:
             radius=radius_m / 1000,
         )
         self._rows.append(new_row)
-        self._rows_by_id[row_id] = new_row
 
         if leaflet_id is not None:
             # NiceGUI already added the circle; just register and set up click handler.
@@ -437,7 +439,6 @@ class ZoneManager:
                 continue
             if row := self._find_row(row_id):
                 self._rows.remove(row)
-                self._rows_by_id.pop(row_id, None)
                 self._unregister(row_id)
 
     # -- Grid event handlers ----------------------------------------------------
@@ -456,7 +457,6 @@ class ZoneManager:
             radius=float(data["radius"]),
         )
         self._rows[:] = [new_row if r["id"] == row_id else r for r in self._rows]
-        self._rows_by_id[row_id] = new_row
 
         if old_row is not None:
             geometry_changed = (
@@ -505,7 +505,6 @@ class ZoneManager:
         row_id = self._new_id()
         new_row = ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
         self._rows.append(new_row)
-        self._rows_by_id[row_id] = new_row
         leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0, row_id)
         if leaflet_id is not None:
             self._register(row_id, leaflet_id)
@@ -524,7 +523,6 @@ class ZoneManager:
         ]
         await self._js_remove_circles(leaflet_ids)
         for row_id in selected_ids:
-            self._rows_by_id.pop(row_id, None)
             self._unregister(row_id)
         self._rows[:] = [r for r in self._rows if r["id"] not in selected_ids]
 
@@ -564,7 +562,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             "set[Country]",
             {pycountry.countries.lookup(country) for country in selected_country_codes},  # type: ignore[no-untyped-call]
         )
-        return selected_country_codes, selected_us_states, countries
+        return CountrySelection(selected_country_codes, selected_us_states, countries)
 
     def validate_filters() -> CountrySelection | None:
         selected_country_codes, selected_us_states, countries = selected_filters()
@@ -577,7 +575,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Please select at least one US state.", type="warning")
             select_us_state.props("error")
             return None
-        return selected_country_codes, selected_us_states, countries
+        return CountrySelection(selected_country_codes, selected_us_states, countries)
 
     async def sync_repeater_markers(
         repeaters: list[Repeater],
@@ -654,8 +652,8 @@ async def index() -> None:  # noqa: C901, PLR0915
             m.run_layer_method(repeater_cluster.id, ":addLayers", markers_expr)  # type: ignore[no-untyped-call]
 
         logger.info(
-            f"Displayed {compatible_count} compatible (blue) and "
-            f"{incompatible_count} incompatible (red) repeaters"
+            "Displayed {} compatible (blue) and {} incompatible (red) repeaters",
+            compatible_count, incompatible_count,
         )
 
     async def populate_repeaters() -> None:
@@ -707,11 +705,11 @@ async def index() -> None:  # noqa: C901, PLR0915
             ui.notify("Duplicate zone names found.", type="warning")
             return
 
-        logger.info(f"Exporting {len(zone_rows)} zones:")
+        logger.info("Exporting {} zones:", len(zone_rows))
         for row in zone_rows:
             logger.info(
-                f"  Zone '{row['name']}': lat={row['lat']}, lng={row['lng']}, "
-                f"radius={row['radius']} km"
+                "  Zone '{}': lat={}, lng={}, radius={} km",
+                row["name"], row["lat"], row["lng"], row["radius"],
             )
 
         loading.set_visibility(True)
@@ -729,9 +727,15 @@ async def index() -> None:  # noqa: C901, PLR0915
                 country_names=country_names,
                 us_state_ids=selected_us_states,
             )
-            logger.info(f"Retrieved repeaters for {len(repeaters_by_zone)} zones:")
+            logger.info("Retrieved repeaters for {} zones:", len(repeaters_by_zone))
             for zone_name, repeaters in repeaters_by_zone.items():
-                logger.info(f"  Zone '{zone_name}': {len(repeaters)} repeaters")
+                logger.info("  Zone '{}': {} repeaters", zone_name, len(repeaters))
+            if not any(repeaters_by_zone.values()):
+                ui.notify(
+                    "No repeaters found. Please load repeaters first.",
+                    type="warning",
+                )
+                return
             codeplug = organize(repeaters_by_zone)
         except ValueError as e:
             ui.notify(f"Error: {e}", type="negative")

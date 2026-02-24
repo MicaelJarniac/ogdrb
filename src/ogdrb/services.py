@@ -192,15 +192,15 @@ def get_repeaters(
     result: dict[str, list[UniRepeater]] = {}
     for name, radius in zones.items():
         logger.info(
-            f"Zone '{name}': lat={radius.origin.lat}, lon={radius.origin.lon}, "
-            f"radius={radius.distance} {radius.unit}"
+            "Zone '{}': lat={}, lon={}, radius={} {}",
+            name, radius.origin.lat, radius.origin.lon, radius.distance, radius.unit,
         )
 
         queried = _RB.query(
             queries.square(radius), *_compatibility_filters(), *extra_filters
         )
         filtered = list(queries.filter_radius(queried, radius))
-        logger.info(f"Found {len(filtered)} repeaters in zone '{name}'")
+        logger.info("Found {} repeaters in zone '{}'", len(filtered), name)
         result[name] = [UniRepeater.from_rb(r) for r in filtered]
 
     return result
