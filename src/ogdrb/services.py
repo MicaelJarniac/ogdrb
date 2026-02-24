@@ -5,6 +5,7 @@ from __future__ import annotations
 __all__: tuple[str, ...] = (
     "US_COUNTRY_CODE",
     "US_COUNTRY_NAME",
+    "RepeaterId",
     "UniRepeater",
     "build_export_queries",
     "get_compatible_repeaters",
@@ -12,7 +13,7 @@ __all__: tuple[str, ...] = (
     "prepare_local_repeaters",
 )
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import anyio
 import pycountry
@@ -50,12 +51,20 @@ _RB_API = RepeaterBookAPI(
 _RB = RepeaterBook(working_dir=Path())
 
 
+class RepeaterId(NamedTuple):
+    """Unique identifier for a repeater."""
+
+    country: str
+    state_id: str
+    repeater_id: int
+
+
 @frozen
 class UniRepeater:
     """Universal repeater model."""
 
     rb: Repeater = field(eq=False)
-    id: tuple[str, str, int]
+    id: RepeaterId
     analog: AnalogChannel | None = field(default=None, eq=False)
     digital: DigitalChannel | None = field(default=None, eq=False)
 
@@ -65,7 +74,7 @@ class UniRepeater:
         analog, digital = repeater_to_channels(rb)
         return cls(
             rb=rb,
-            id=(rb.country or "", rb.state_id, rb.repeater_id),
+            id=RepeaterId(rb.country or "", rb.state_id, rb.repeater_id),
             analog=analog,
             digital=digital,
         )
@@ -78,7 +87,7 @@ def build_export_queries(
 ) -> list[ExportQuery]:
     """Build export queries, splitting USA requests per state when provided."""
     us_country = next(
-        (country for country in export.countries if country.alpha_2 == "US"),
+        (country for country in export.countries if country.alpha_2 == US_COUNTRY_CODE),
         None,
     )
     if us_country is None:
@@ -90,7 +99,7 @@ def build_export_queries(
 
     queries_: list[ExportQuery] = []
     non_us_countries = frozenset(
-        country for country in export.countries if country.alpha_2 != "US"
+        country for country in export.countries if country.alpha_2 != US_COUNTRY_CODE
     )
     if non_us_countries:
         queries_.append(
@@ -231,7 +240,11 @@ async def prepare_local_repeaters(
             tg.start_soon(_download_one, query, idx)
 
     unique_repeaters = {
-        (repeater.country or "", repeater.state_id, repeater.repeater_id): repeater
+        RepeaterId(
+            repeater.country or "",
+            repeater.state_id,
+            repeater.repeater_id,
+        ): repeater
         for batch in results.values()
         for repeater in batch
     }

@@ -107,7 +107,6 @@ def test_zone_manager_update_rows_from_layers() -> None:
     grid = MockGrid(initial_rows)
     zm = ZoneManager(MockLeaflet(), grid)  # type: ignore[arg-type]
 
-
     # Simulate layer data from Leaflet
     layers = [
         {
