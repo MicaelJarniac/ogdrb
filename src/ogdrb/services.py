@@ -27,7 +27,7 @@ from sqlmodel import col, or_
 
 from ogdrb.converters import BANDWIDTH, repeater_to_channels
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from typing import Self
 
     from opengd77.models import AnalogChannel, DigitalChannel

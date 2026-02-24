@@ -11,7 +11,7 @@ from opengd77.models import AnalogChannel, Codeplug, DigitalChannel, Zone
 
 from ogdrb.utils import MakeUnique
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from ogdrb.services import UniRepeater
 
 

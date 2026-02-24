@@ -30,7 +30,7 @@ from ogdrb.services import (
     prepare_local_repeaters,
 )
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from nicegui.elements.aggrid import AgGrid
     from nicegui.elements.leaflet import Leaflet
     from nicegui.events import GenericEventArguments
@@ -653,7 +653,8 @@ async def index() -> None:  # noqa: C901, PLR0915
 
         logger.info(
             "Displayed {} compatible (blue) and {} incompatible (red) repeaters",
-            compatible_count, incompatible_count,
+            compatible_count,
+            incompatible_count,
         )
 
     async def populate_repeaters() -> None:
@@ -709,7 +710,10 @@ async def index() -> None:  # noqa: C901, PLR0915
         for row in zone_rows:
             logger.info(
                 "  Zone '{}': lat={}, lng={}, radius={} km",
-                row["name"], row["lat"], row["lng"], row["radius"],
+                row["name"],
+                row["lat"],
+                row["lng"],
+                row["radius"],
             )
 
         loading.set_visibility(True)
