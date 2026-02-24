@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # US country constants
 _US_COUNTRY_OBJ = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
-US_COUNTRY_CODE = "US"  # Alpha-2 code for use in comparisons
+US_COUNTRY_CODE = _US_COUNTRY_OBJ.alpha_2  # Alpha-2 code for use in comparisons
 US_COUNTRY_NAME = _US_COUNTRY_OBJ.name  # "United States" - for database queries
 
 # Module-level service instances (reused across calls)
@@ -193,7 +193,11 @@ def get_repeaters(
     for name, radius in zones.items():
         logger.info(
             "Zone '{}': lat={}, lon={}, radius={} {}",
-            name, radius.origin.lat, radius.origin.lon, radius.distance, radius.unit,
+            name,
+            radius.origin.lat,
+            radius.origin.lon,
+            radius.distance,
+            radius.unit,
         )
 
         queried = _RB.query(
