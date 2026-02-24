@@ -7,7 +7,6 @@ __all__: tuple[str, ...] = (
     "repeater_to_channels",
 )
 
-
 from decimal import Decimal
 from typing import TYPE_CHECKING, Final
 
