@@ -85,13 +85,22 @@ def build_export_queries(
     *,
     us_state_ids: frozenset[str],
 ) -> list[ExportQuery]:
-    """Build export queries, splitting USA requests per state when provided."""
+    """Build export queries, splitting per country and per US state.
+
+    Each non-US country gets its own query so that no single API request
+    risks hitting RepeaterBook's result-count cap.  US requests are further
+    split per selected state to stay within the same cap.
+    """
     us_country = next(
         (country for country in export.countries if country.alpha_2 == US_COUNTRY_CODE),
         None,
     )
     if us_country is None:
-        return [export]
+        # No US selected — split non-US countries into individual queries.
+        return [
+            evolve(export, countries=frozenset((country,)))
+            for country in sorted(export.countries, key=lambda c: c.alpha_2)
+        ]
 
     if not us_state_ids:
         msg = "US states must be selected when US is in countries"
@@ -101,14 +110,14 @@ def build_export_queries(
     non_us_countries = frozenset(
         country for country in export.countries if country.alpha_2 != US_COUNTRY_CODE
     )
-    if non_us_countries:
-        queries_.append(
-            evolve(
-                export,
-                countries=non_us_countries,
-                state_ids=frozenset(),
-            )
+    queries_.extend(
+        evolve(
+            export,
+            countries=frozenset((country,)),
+            state_ids=frozenset(),
         )
+        for country in sorted(non_us_countries, key=lambda c: c.alpha_2)
+    )
 
     queries_.extend(
         evolve(

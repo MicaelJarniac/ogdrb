@@ -21,14 +21,28 @@ if TYPE_CHECKING:
     from pycountry.db import Country
 
 
-def test_build_export_queries_without_us() -> None:
-    """Keep a single query when USA is not selected."""
+def test_build_export_queries_single_non_us_country() -> None:
+    """A single non-US country still produces one query."""
     canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
     query = ExportQuery(countries=frozenset((canada,)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"CA"}))
 
     assert result == [query]
+
+
+def test_build_export_queries_splits_non_us_countries() -> None:
+    """Multiple non-US countries are split into one query per country."""
+    brazil = cast("Country", pycountry.countries.lookup("BR"))  # type: ignore[no-untyped-call]
+    germany = cast("Country", pycountry.countries.lookup("DE"))  # type: ignore[no-untyped-call]
+    query = ExportQuery(countries=frozenset((brazil, germany)))
+
+    result = build_export_queries(query, us_state_ids=frozenset())
+
+    assert len(result) == 2
+    # Sorted by alpha_2: BR before DE
+    assert result[0].countries == frozenset((brazil,))
+    assert result[1].countries == frozenset((germany,))
 
 
 def test_build_export_queries_split_us_states() -> None:
@@ -46,6 +60,25 @@ def test_build_export_queries_split_us_states() -> None:
     assert result[2].countries == frozenset((usa,))
     assert result[2].state_ids == frozenset(("NY",))
 
+
+def test_build_export_queries_splits_non_us_with_us() -> None:
+    """Non-US countries are split per-country alongside per-state US queries."""
+    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
+    brazil = cast("Country", pycountry.countries.lookup("BR"))  # type: ignore[no-untyped-call]
+    germany = cast("Country", pycountry.countries.lookup("DE"))  # type: ignore[no-untyped-call]
+    query = ExportQuery(countries=frozenset((usa, brazil, germany)))
+
+    result = build_export_queries(query, us_state_ids=frozenset({"NY"}))
+
+    assert len(result) == 3
+    # Non-US countries first, sorted by alpha_2: BR before DE
+    assert result[0].countries == frozenset((brazil,))
+    assert result[0].state_ids == frozenset()
+    assert result[1].countries == frozenset((germany,))
+    assert result[1].state_ids == frozenset()
+    # Then US per-state
+    assert result[2].countries == frozenset((usa,))
+    assert result[2].state_ids == frozenset(("NY",))
 
 def test_build_export_queries_raises_on_us_without_states() -> None:
     """Raise ValueError when US is selected but no states provided."""
