@@ -129,7 +129,7 @@ class ZoneManager:
         return self._rows
 
     async def init(self) -> None:
-        """Cache the draw FeatureGroup reference and fix circle resize bug."""
+        """Cache the draw FeatureGroup reference."""
         await ui.run_javascript(
             f"""
             (() => {{
@@ -162,44 +162,6 @@ class ZoneManager:
                     if (!group) return null;
                     return {{el, map: el.map, group}};
                 }};
-
-                // Monkey-patch: NiceGUI's minified Leaflet Draw bundle has a bug
-                // where L.Edit.Circle._resize uses an undeclared `radius` variable.
-                // The minifier converted `var moveLatLng = ..., radius;` into
-                // `var e = ...;` — dropping the `radius` declaration.  Since the
-                // bundle is loaded as an ES module (strict mode), the bare
-                // `radius = ...` throws a ReferenceError, silently breaking
-                // circle resize.  Re-define the method with a proper `var`.
-                if (L.Edit && L.Edit.Circle) {{
-                    L.Edit.Circle.prototype._resize = function (latlng) {{
-                        var moveLatLng = this._moveMarker.getLatLng(),
-                            radius;
-                        if (L.GeometryUtil.isVersion07x()) {{
-                            radius = moveLatLng.distanceTo(latlng);
-                        }} else {{
-                            radius = this._map.distance(moveLatLng, latlng);
-                        }}
-                        this._shape.setRadius(radius);
-                        if (this._map._editTooltip) {{
-                            this._map._editTooltip.updateContent({{
-                                text: L.drawLocal.edit.handlers.edit.tooltip.subtext
-                                    + '<br />'
-                                    + L.drawLocal.edit.handlers.edit.tooltip.text,
-                                subtext: L.drawLocal.draw.handlers.circle.radius
-                                    + ': '
-                                    + L.GeometryUtil.readableDistance(
-                                        radius, true,
-                                        this.options.feet,
-                                        this.options.nautic
-                                    ),
-                            }});
-                        }}
-                        this._shape.setRadius(radius);
-                        this._map.fire(L.Draw.Event.EDITRESIZE, {{
-                            layer: this._shape,
-                        }});
-                    }};
-                }}
             }})();
             """,
             timeout=2.0,

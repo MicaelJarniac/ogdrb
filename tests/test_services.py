@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pycountry
@@ -17,13 +16,10 @@ from repeaterbook.utils import LatLon, Radius
 
 from ogdrb.services import build_export_queries, get_repeaters, prepare_local_repeaters
 
-if TYPE_CHECKING:
-    from pycountry.db import Country
-
 
 def test_build_export_queries_single_non_us_country() -> None:
     """A single non-US country still produces one query."""
-    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
+    canada = pycountry.countries.lookup("CA")
     query = ExportQuery(countries=frozenset((canada,)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"CA"}))
@@ -33,8 +29,8 @@ def test_build_export_queries_single_non_us_country() -> None:
 
 def test_build_export_queries_splits_non_us_countries() -> None:
     """Multiple non-US countries are split into one query per country."""
-    brazil = cast("Country", pycountry.countries.lookup("BR"))  # type: ignore[no-untyped-call]
-    germany = cast("Country", pycountry.countries.lookup("DE"))  # type: ignore[no-untyped-call]
+    brazil = pycountry.countries.lookup("BR")
+    germany = pycountry.countries.lookup("DE")
     query = ExportQuery(countries=frozenset((brazil, germany)))
 
     result = build_export_queries(query, us_state_ids=frozenset())
@@ -47,8 +43,8 @@ def test_build_export_queries_splits_non_us_countries() -> None:
 
 def test_build_export_queries_split_us_states() -> None:
     """Split USA query into one request per selected state."""
-    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
-    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
+    usa = pycountry.countries.lookup("US")
+    canada = pycountry.countries.lookup("CA")
     query = ExportQuery(countries=frozenset((usa, canada)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"CA", "NY"}))
@@ -63,9 +59,9 @@ def test_build_export_queries_split_us_states() -> None:
 
 def test_build_export_queries_splits_non_us_with_us() -> None:
     """Non-US countries are split per-country alongside per-state US queries."""
-    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
-    brazil = cast("Country", pycountry.countries.lookup("BR"))  # type: ignore[no-untyped-call]
-    germany = cast("Country", pycountry.countries.lookup("DE"))  # type: ignore[no-untyped-call]
+    usa = pycountry.countries.lookup("US")
+    brazil = pycountry.countries.lookup("BR")
+    germany = pycountry.countries.lookup("DE")
     query = ExportQuery(countries=frozenset((usa, brazil, germany)))
 
     result = build_export_queries(query, us_state_ids=frozenset({"NY"}))
@@ -80,9 +76,10 @@ def test_build_export_queries_splits_non_us_with_us() -> None:
     assert result[2].countries == frozenset((usa,))
     assert result[2].state_ids == frozenset(("NY",))
 
+
 def test_build_export_queries_raises_on_us_without_states() -> None:
     """Raise ValueError when US is selected but no states provided."""
-    usa = cast("Country", pycountry.countries.lookup("US"))  # type: ignore[no-untyped-call]
+    usa = pycountry.countries.lookup("US")
     query = ExportQuery(countries=frozenset((usa,)))
 
     with pytest.raises(ValueError, match="US states must be selected"):
@@ -91,7 +88,7 @@ def test_build_export_queries_raises_on_us_without_states() -> None:
 
 async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
     """Test that prepare_local_repeaters downloads, deduplicates, and populates."""
-    canada = cast("Country", pycountry.countries.lookup("CA"))  # type: ignore[no-untyped-call]
+    canada = pycountry.countries.lookup("CA")
     query = ExportQuery(countries=frozenset((canada,)))
 
     # Create mock repeaters with duplicates
