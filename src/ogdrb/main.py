@@ -502,10 +502,11 @@ class ZoneManager:
 
     async def add_zone(self) -> None:
         """Add a new zone from the 'New zone' button."""
+        radius = 50.0  # default radius in km
         row_id = self._new_id()
-        new_row = ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=1.0)
+        new_row = ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=radius)
         self._rows.append(new_row)
-        leaflet_id = await self._js_add_circle(0.0, 0.0, 1000.0, row_id)
+        leaflet_id = await self._js_add_circle(0.0, 0.0, radius * 1000, row_id)
         if leaflet_id is not None:
             self._register(row_id, leaflet_id)
 
@@ -760,37 +761,51 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.header():
         #' ui.button(icon="menu", on_click=drawer.toggle)
         ui.label("OGDRB").classes("text-2xl")
-        select_country = ui.select(
-            label="Select countries",
-            with_input=True,
-            multiple=True,
-            clearable=True,
-            options={country.alpha_2: country.name for country in pycountry.countries},  # type: ignore[no-untyped-call]
-        ).classes("w-1/3")
-        select_us_state = ui.select(
-            label="Select US states",
-            with_input=True,
-            multiple=True,
-            clearable=True,
-            options=US_STATES,
-        ).classes("w-1/3")
-        select_us_state.set_visibility(False)
+        with ui.column():
+            with ui.row():
+                select_country = ui.select(
+                    label="Select countries",
+                    with_input=True,
+                    multiple=True,
+                    clearable=True,
+                    options={
+                        country.alpha_2: country.name  # type: ignore[no-untyped-call]
+                        for country in pycountry.countries
+                    },
+                )
+                select_us_state = ui.select(
+                    label="Select US states",
+                    with_input=True,
+                    multiple=True,
+                    clearable=True,
+                    options=US_STATES,
+                )
+                select_us_state.set_visibility(False)
 
-        def sync_us_states_visibility() -> None:
-            selected_countries = frozenset(cast("set[str]", select_country.value) or ())
-            us_selected = US_COUNTRY_CODE in selected_countries
-            select_us_state.set_visibility(us_selected)
-            if not us_selected:
-                select_us_state.set_value([])
+            def sync_us_states_visibility() -> None:
+                selected_countries = frozenset(
+                    cast("set[str]", select_country.value) or ()
+                )
+                us_selected = US_COUNTRY_CODE in selected_countries
+                select_us_state.set_visibility(us_selected)
+                if not us_selected:
+                    select_us_state.set_value([])
 
-        select_country.on_value_change(lambda _: sync_us_states_visibility())
+            select_country.on_value_change(lambda _: sync_us_states_visibility())
 
-        ui.button("Load Repeaters", on_click=populate_repeaters).props(
-            "icon=cloud_download"
-        )
-        ui.button("Export", on_click=export).props("icon=save")
-        loading = ui.spinner("dots", size="lg", color="red")
-        loading.set_visibility(False)
+            with ui.row():
+                ui.button("Load Repeaters", on_click=populate_repeaters).props(
+                    "icon=cloud_download"
+                )
+                ui.button("Export", on_click=export).props("icon=save")
+                new_zone = ui.button("New zone").props(
+                    "icon=add color=green",
+                )
+                delete_zones = ui.button("Delete selected zones").props(
+                    "icon=delete color=red",
+                )
+                loading = ui.spinner("dots", size="lg", color="red")
+                loading.set_visibility(False)
 
     with ui.footer():
         # sanitize=False: static content with trusted HTML anchor tags
@@ -935,14 +950,8 @@ async def index() -> None:  # noqa: C901, PLR0915
     aggrid.on("cellValueChanged", zm.handle_cell_value_changed)
     aggrid.on("rowSelected", zm.handle_selection_changed)
     aggrid.on("gridReady", zm.handle_grid_ready)
-
-    with ui.row():
-        ui.button("New zone", on_click=zm.add_zone).props(
-            "icon=add color=green",
-        )
-        ui.button("Delete selected zones", on_click=zm.delete_selected).props(
-            "icon=delete color=red",
-        )
+    new_zone.on_click(zm.add_zone)
+    delete_zones.on_click(zm.delete_selected)
 
     with ui.page_sticky(position="bottom-right", x_offset=20, y_offset=20):
         ui.button(
