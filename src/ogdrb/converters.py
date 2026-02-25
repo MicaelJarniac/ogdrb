@@ -7,7 +7,6 @@ __all__: tuple[str, ...] = (
     "repeater_to_channels",
 )
 
-
 from decimal import Decimal
 from typing import TYPE_CHECKING, Final
 
@@ -21,7 +20,7 @@ from opengd77.models import (
 
 from ogdrb.utils import normalize_string
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from repeaterbook.models import Repeater
 
 BANDWIDTH: Final[dict[Decimal, Bandwidth]] = {
