@@ -266,21 +266,21 @@ class ZoneManager:
             "str | int | None",
             await ui.run_javascript(
                 f"""
-            (() => {{
-                try {{
-                    const ctx = _ogdrb_ctx('{self._map_id}');
-                    if (!ctx) return null;
-                    const c = L.circle([{lat}, {lng}], {{
-                        radius: {radius_m}, color: '{color}'
-                    }}).addTo(ctx.group);
-                    c._ogdrb_row_id = {row_id};
-                    c.on('click', () => ctx.el.$emit('circle-click', {{
-                        row_id: {row_id}
-                    }}));
-                    return L.stamp(c);
-                }} catch (e) {{ console.error('_js_add_circle', e); return null; }}
-            }})();
-            """,
+                (() => {{
+                    try {{
+                        const ctx = _ogdrb_ctx('{self._map_id}');
+                        if (!ctx) return null;
+                        const c = L.circle([{lat}, {lng}], {{
+                            radius: {radius_m}, color: '{color}'
+                        }}).addTo(ctx.group);
+                        c._ogdrb_row_id = {row_id};
+                        c.on('click', () => ctx.el.$emit('circle-click', {{
+                            row_id: {row_id}
+                        }}));
+                        return L.stamp(c);
+                    }} catch (e) {{ console.error('_js_add_circle', e); return null; }}
+                }})();
+                """,
                 timeout=2.0,
             ),
         )
