@@ -21,6 +21,7 @@ classifiers = [
 requires-python = ">=3.14"  # py_ver
 dependencies = [
     "anyio>=4.12.1",
+    "babel>=2.18.0",
     "attrs>=25.4.0",
     "haversine>=2.9.0",
     "loguru>=0.7.3",
@@ -172,11 +173,11 @@ addopts = [
 [tool.inline-snapshot]
 format-command = "ruff format --stdin-filename {filename}"
 
-[tool.babel]
-[[tool.babel.mappings]]
-method = "python"
-pattern = "**.py"
+[tool.babel.extract_messages]
 keywords = ["t"]
+mapping = [{method = "python", pattern = "src/ogdrb/**.py"}]
+output_file = "src/ogdrb/locales/ogdrb.pot"
+project = "ogdrb"
 
 [tool.cruft]
 skip = [
