@@ -25,6 +25,11 @@ LOCALE_DIR: Final[Path] = Path(__file__).parent / "locales"
 DOMAIN: Final[str] = "ogdrb"
 LANGUAGE_KEY: Final[str] = "language"
 
+# Override auto-detected emoji for locales whose country code doesn't map to a
+# flag (e.g. language-only codes like "pt" or "en").  Keys are POSIX locale
+# codes (the directory names under ``locales/``).
+EMOJI_OVERRIDES: dict[str, str | None] = {}
+
 
 class Language(NamedTuple):
     """Represents a supported language."""
@@ -34,20 +39,56 @@ class Language(NamedTuple):
     emoji: str | None = None
 
 
-EN_US_CODE = "en-US"
-PT_BR_CODE = "pt-BR"
+def _flag_emoji(country_code: str) -> str | None:
+    """Convert an ISO 3166-1 alpha-2 country code to a flag emoji.
 
-EN_US = Language(
-    code=EN_US_CODE,
-    name=Locale.parse(EN_US_CODE, sep="-").language_name,
-    emoji="\U0001f1fa\U0001f1f8",
+    Returns ``None`` when *country_code* is empty or not exactly two ASCII
+    letters.
+    """
+    if (
+        len(country_code) != 2  # noqa: PLR2004
+        or not country_code.isascii()
+        or not country_code.isalpha()
+    ):
+        return None
+    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in country_code.upper())
+
+
+def _discover_languages() -> tuple[Language, ...]:
+    """Scan *LOCALE_DIR* and build :class:`Language` objects for each locale.
+
+    A locale directory is recognised when it contains
+    ``LC_MESSAGES/{DOMAIN}.mo``.  The BCP-47 code, display name, and flag
+    emoji are derived automatically from the directory name via
+    :mod:`babel`.
+    """
+    languages: list[Language] = []
+    for path in sorted(LOCALE_DIR.iterdir()):
+        if not path.is_dir():
+            continue
+        mo_file = path / "LC_MESSAGES" / f"{DOMAIN}.mo"
+        if not mo_file.exists():
+            continue
+        posix_code = path.name  # e.g. "pt_BR"
+        locale = Locale.parse(posix_code)
+        bcp47 = str(locale).replace("_", "-")  # e.g. "pt-BR"
+        emoji = EMOJI_OVERRIDES.get(posix_code, _flag_emoji(locale.territory or ""))
+        languages.append(
+            Language(code=bcp47, name=locale.language_name, emoji=emoji),
+        )
+    return tuple(languages)
+
+
+# English is the source language (no .mo file), so it is always present.
+_EN_US_LOCALE: Final[Locale] = Locale.parse("en_US")
+DEFAULT_LANGUAGE: Final[Language] = Language(
+    code="en-US",
+    name=_EN_US_LOCALE.language_name,
+    emoji=_flag_emoji(_EN_US_LOCALE.territory or ""),
 )
 
-PT_BR = Language(
-    code=PT_BR_CODE,
-    name=Locale.parse(PT_BR_CODE, sep="-").language_name,
-    emoji="\U0001f1e7\U0001f1f7",
-)
+# Discovered at import time; add new languages by creating locale directories.
+_DISCOVERED: Final[tuple[Language, ...]] = _discover_languages()
 
 
 # Translation cache keyed by language code.
@@ -79,10 +120,10 @@ def t(message: str) -> str:
     try:
         lang_code: str = cast(
             "str",
-            app.storage.user.get(LANGUAGE_KEY, EN_US_CODE),  # type: ignore[type-unknown]
+            app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code),  # type: ignore[type-unknown]
         )
     except Exception:  # noqa: BLE001
-        lang_code = EN_US_CODE
+        lang_code = DEFAULT_LANGUAGE.code
     return _get_translation(lang_code).gettext(message)
 
 
@@ -90,17 +131,18 @@ class LanguageManager:
     """Manages supported languages and user preferences."""
 
     @property
-    def supported(self) -> set[Language]:
-        """Return the set of supported languages."""
-        return {
-            EN_US,
-            PT_BR,
-        }
+    def supported(self) -> frozenset[Language]:
+        """Return the set of supported languages.
+
+        Languages are auto-detected from locale directories under
+        :data:`LOCALE_DIR`.  The default language is always included.
+        """
+        return frozenset((*_DISCOVERED, DEFAULT_LANGUAGE))
 
     @property
     def default(self) -> Language:
         """Return the default language."""
-        return EN_US
+        return DEFAULT_LANGUAGE
 
     @property
     def browser_language(self) -> str | None:
@@ -117,7 +159,7 @@ class LanguageManager:
     @property
     def current(self) -> str:
         """Return the current language code for the user."""
-        return cast("str", app.storage.user.get(LANGUAGE_KEY, EN_US.code))  # type: ignore[type-unknown]
+        return cast("str", app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code))  # type: ignore[type-unknown]
 
     @current.setter
     def current(self, code: str) -> None:
