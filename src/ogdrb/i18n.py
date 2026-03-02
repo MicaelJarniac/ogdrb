@@ -10,6 +10,7 @@ __all__: tuple[str, ...] = (
     "territory_name",
 )
 
+import contextlib
 import gettext
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, NamedTuple, cast
@@ -113,20 +114,28 @@ def _get_translation(
     return _translations[lang_code]
 
 
+def _current_lang_code() -> str:
+    """Return the current user's language code.
+
+    Falls back to the default language when called outside a NiceGUI request
+    context or when user storage is unavailable.
+    """
+    try:
+        return cast(
+            "str",
+            app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code),  # type: ignore[type-unknown]
+        )
+    except Exception:  # noqa: BLE001
+        return DEFAULT_LANGUAGE.code
+
+
 def t(message: str) -> str:
     """Translate *message* using the current user's language.
 
     Falls back to the source string (English) when no translation is found or
     when called outside a NiceGUI request context.
     """
-    try:
-        lang_code: str = cast(
-            "str",
-            app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code),  # type: ignore[type-unknown]
-        )
-    except Exception:  # noqa: BLE001
-        lang_code = DEFAULT_LANGUAGE.code
-    return _get_translation(lang_code).gettext(message)
+    return _get_translation(_current_lang_code()).gettext(message)
 
 
 def territory_name(alpha_2: str) -> str:
@@ -135,15 +144,11 @@ def territory_name(alpha_2: str) -> str:
     Uses the current user's language.  Falls back to *alpha_2* when no
     translation is available.
     """
-    try:
-        lang_code: str = cast(
-            "str",
-            app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code),  # type: ignore[type-unknown]
-        )
-    except Exception:  # noqa: BLE001
-        lang_code = DEFAULT_LANGUAGE.code
-    locale = Locale.parse(lang_code.replace("-", "_"))
-    return str(locale.territories.get(alpha_2, alpha_2))  # type: ignore[union-attr]
+    locale = Locale.parse(_current_lang_code().replace("-", "_"))
+    territories = locale.territories
+    if territories is None:
+        return alpha_2
+    return str(territories.get(alpha_2, alpha_2))
 
 
 class LanguageManager:
@@ -168,9 +173,11 @@ class LanguageManager:
         """Detect the user's preferred language from the browser settings."""
         if ui.context.client.request:
             supported_codes = {lang.code for lang in self.supported}
-            for lang in ui.context.client.request.headers.get(
+            for entry in ui.context.client.request.headers.get(
                 "accept-language", ""
             ).split(","):
+                # Strip quality value (e.g. "en-US;q=0.9" → "en-US")
+                lang = entry.split(";")[0].strip()
                 if lang in supported_codes:
                     return lang
         return None
@@ -186,22 +193,28 @@ class LanguageManager:
         """Create a UI selector for choosing the language."""
         # Seed storage before creating the select so that bind_value does
         # not trigger a spurious on_change → reload on first page load.
-        if LANGUAGE_KEY not in app.storage.user:  # type: ignore[operator]
-            app.storage.user[LANGUAGE_KEY] = self.browser_language or self.default.code
+        with contextlib.suppress(Exception):
+            if LANGUAGE_KEY not in app.storage.user:  # type: ignore[operator]
+                app.storage.user[LANGUAGE_KEY] = (
+                    self.browser_language or self.default.code
+                )
         options = {
             lang.code: f"{lang.emoji} {lang.name}" if lang.emoji else lang.name
             for lang in sorted(self.supported, key=lambda lng: lng.code)
         }
-        return ui.select(
+        sel = ui.select(
             label=t("Language"),
             options=options,
-            value=app.storage.user.get(LANGUAGE_KEY, self.default.code),  # type: ignore[type-unknown]
+            value=_current_lang_code(),
             on_change=self.reload_if_changed,
-        ).bind_value(app.storage.user, LANGUAGE_KEY)
+        )
+        with contextlib.suppress(Exception):
+            sel.bind_value(app.storage.user, LANGUAGE_KEY)
+        return sel
 
     def quasar_html(self) -> None:
         """Add Quasar language pack HTML for the current user's language."""
-        lang = cast("str", app.storage.user.get(LANGUAGE_KEY, self.default.code))  # type: ignore[type-unknown]
+        lang = _current_lang_code()
         ui.add_body_html(f"""
             <script defer src="/_nicegui/{_nv}/static/lang/{lang}.umd.prod.js">
             </script>
