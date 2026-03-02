@@ -10,6 +10,7 @@ from ogdrb.i18n import (
     _current_lang_code,
     _discover_languages,
     _flag_emoji,
+    _parse_accept_languages,
     language_manager,
     t,
     territory_name,
@@ -43,6 +44,44 @@ class TestFlagEmoji:
 
     def test_non_ascii(self) -> None:
         assert _flag_emoji("ÁÉ") is None
+
+
+class TestParseAcceptLanguages:
+    """Tests for _parse_accept_languages()."""
+
+    def test_empty_string(self) -> None:
+        assert _parse_accept_languages("") == []
+
+    def test_single_language(self) -> None:
+        assert _parse_accept_languages("en-US") == ["en-US"]
+
+    def test_quality_sorting(self) -> None:
+        header = "en-US;q=0.7, pt-BR;q=0.9, fr;q=0.5"
+        result = _parse_accept_languages(header)
+        assert result == ["pt-BR", "en-US", "fr"]
+
+    def test_default_quality_is_one(self) -> None:
+        header = "pt-BR, en-US;q=0.8"
+        result = _parse_accept_languages(header)
+        assert result == ["pt-BR", "en-US"]
+
+    def test_invalid_quality_treated_as_zero(self) -> None:
+        header = "en-US;q=bad, pt-BR"
+        result = _parse_accept_languages(header)
+        assert result == ["pt-BR", "en-US"]
+
+    def test_wildcard_preserved(self) -> None:
+        header = "en-US, *;q=0.1"
+        result = _parse_accept_languages(header)
+        assert "*" in result
+
+    def test_realistic_chrome_header(self) -> None:
+        header = "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7"
+        result = _parse_accept_languages(header)
+        assert result[0] == "en-US"
+        assert result[1] == "en"
+        assert result[2] == "pt-BR"
+        assert result[3] == "pt"
 
 
 class TestDiscoverLanguages:

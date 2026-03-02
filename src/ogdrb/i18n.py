@@ -151,6 +151,32 @@ def territory_name(alpha_2: str) -> str:
     return str(territories.get(alpha_2, alpha_2))
 
 
+def _parse_accept_languages(header: str) -> list[str]:
+    """Parse an ``Accept-Language`` header into a quality-sorted language list.
+
+    Implements RFC 7231 §5.3.5: each entry may carry a quality value
+    (``q=0.0`` … ``q=1.0``, default 1.0).  Entries are returned highest-quality
+    first so the caller can iterate and pick the first supported match.
+    """
+    languages: list[tuple[str, float]] = []
+    for entry in header.split(","):
+        parts = entry.strip().split(";")
+        lang = parts[0].strip()
+        if not lang:
+            continue
+        quality = 1.0
+        for param in parts[1:]:
+            stripped = param.strip()
+            if stripped.startswith("q="):
+                try:
+                    quality = float(stripped[2:])
+                except ValueError:
+                    quality = 0.0
+        languages.append((lang, quality))
+    languages.sort(key=lambda pair: pair[1], reverse=True)
+    return [lang for lang, _ in languages]
+
+
 class LanguageManager:
     """Manages supported languages and user preferences."""
 
@@ -170,14 +196,15 @@ class LanguageManager:
 
     @property
     def browser_language(self) -> str | None:
-        """Detect the user's preferred language from the browser settings."""
+        """Detect the user's preferred language from the browser settings.
+
+        Parses the ``Accept-Language`` header, respects quality values, and
+        returns the first language code that matches a supported locale.
+        """
         if ui.context.client.request:
             supported_codes = {lang.code for lang in self.supported}
-            for entry in ui.context.client.request.headers.get(
-                "accept-language", ""
-            ).split(","):
-                # Strip quality value (e.g. "en-US;q=0.9" → "en-US")
-                lang = entry.split(";")[0].strip()
+            header = ui.context.client.request.headers.get("accept-language", "")
+            for lang in _parse_accept_languages(header):
                 if lang in supported_codes:
                     return lang
         return None
