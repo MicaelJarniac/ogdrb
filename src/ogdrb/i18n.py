@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, NamedTuple, cast
 
 from babel import Locale
+from nicegui import __version__ as _nv
 from nicegui import app, ui
 
 if TYPE_CHECKING:
@@ -142,7 +143,7 @@ def territory_name(alpha_2: str) -> str:
     except Exception:  # noqa: BLE001
         lang_code = DEFAULT_LANGUAGE.code
     locale = Locale.parse(lang_code.replace("-", "_"))
-    return str(locale.territories.get(alpha_2, alpha_2))
+    return str(locale.territories.get(alpha_2, alpha_2))  # type: ignore[union-attr]
 
 
 class LanguageManager:
@@ -197,6 +198,19 @@ class LanguageManager:
             value=app.storage.user.get(LANGUAGE_KEY, self.default.code),  # type: ignore[type-unknown]
             on_change=self.reload_if_changed,
         ).bind_value(app.storage.user, LANGUAGE_KEY)
+
+    def quasar_html(self) -> None:
+        """Add Quasar language pack HTML for the current user's language."""
+        lang = cast("str", app.storage.user.get(LANGUAGE_KEY, self.default.code))  # type: ignore[type-unknown]
+        ui.add_body_html(f"""
+            <script defer src="/_nicegui/{_nv}/static/lang/{lang}.umd.prod.js">
+            </script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {{
+                    Quasar.lang.set(Quasar.lang["{lang.replace("-", "")}"])
+                }})
+            </script>
+        """)
 
 
 language_manager = LanguageManager()

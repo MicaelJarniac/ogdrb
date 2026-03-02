@@ -519,6 +519,8 @@ class ZoneManager:
 
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
+    language_manager.quasar_html()
+
     class ExternalURLs(StrEnum):
         """External URLs."""
 

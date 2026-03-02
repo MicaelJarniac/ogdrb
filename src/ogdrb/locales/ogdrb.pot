@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ogdrb 0.5.0\n"
 "Report-Msgid-Bugs-To: https://github.com/MicaelJarniac/ogdrb/issues\n"
-"POT-Creation-Date: 2026-03-02 14:03-0300\n"
+"POT-Creation-Date: 2026-03-02 14:25-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,102 +17,102 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/ogdrb/i18n.py:181
+#: src/ogdrb/i18n.py:182
 msgid "Language changed. Reloading."
 msgstr ""
 
-#: src/ogdrb/i18n.py:195
+#: src/ogdrb/i18n.py:196
 msgid "Language"
 msgstr ""
 
-#: src/ogdrb/main.py:170 src/ogdrb/main.py:778
+#: src/ogdrb/main.py:170 src/ogdrb/main.py:780
 msgid "New Zone"
 msgstr ""
 
-#: src/ogdrb/main.py:525
+#: src/ogdrb/main.py:527
 msgid "https://repeaterbook.com"
 msgstr ""
 
-#: src/ogdrb/main.py:526
+#: src/ogdrb/main.py:528
 msgid "https://repeaterbook.com/wiki/doku.php?id=api"
 msgstr ""
 
-#: src/ogdrb/main.py:527
+#: src/ogdrb/main.py:529
 msgid "https://repeaterbook.com/index.php/rbplus"
 msgstr ""
 
-#: src/ogdrb/main.py:528
+#: src/ogdrb/main.py:530
 msgid "https://opengd77.com"
 msgstr ""
 
-#: src/ogdrb/main.py:529
+#: src/ogdrb/main.py:531
 msgid "https://github.com/MicaelJarniac/ogdrb"
 msgstr ""
 
-#: src/ogdrb/main.py:545
+#: src/ogdrb/main.py:547
 msgid "Please select at least one country."
 msgstr ""
 
-#: src/ogdrb/main.py:550
+#: src/ogdrb/main.py:552
 msgid "Please select at least one US state."
 msgstr ""
 
-#: src/ogdrb/main.py:573
+#: src/ogdrb/main.py:575
 msgid "Unknown"
 msgstr ""
 
-#: src/ogdrb/main.py:593
+#: src/ogdrb/main.py:595
 msgid " ⚠️ INCOMPATIBLE"
 msgstr ""
 
-#: src/ogdrb/main.py:661 src/ogdrb/main.py:721
+#: src/ogdrb/main.py:663 src/ogdrb/main.py:723
 #, python-brace-format
 msgid "Error: {}"
 msgstr ""
 
-#: src/ogdrb/main.py:666
+#: src/ogdrb/main.py:668
 #, python-brace-format
 msgid "Loaded {} repeaters ({} compatible)."
 msgstr ""
 
-#: src/ogdrb/main.py:679
+#: src/ogdrb/main.py:681
 msgid "Please add at least one zone."
 msgstr ""
 
-#: src/ogdrb/main.py:682
+#: src/ogdrb/main.py:684
 msgid "Duplicate zone names found."
 msgstr ""
 
-#: src/ogdrb/main.py:715
+#: src/ogdrb/main.py:717
 msgid "No repeaters found. Please load repeaters first."
 msgstr ""
 
-#: src/ogdrb/main.py:744
+#: src/ogdrb/main.py:746
 msgid "Select countries"
 msgstr ""
 
-#: src/ogdrb/main.py:754
+#: src/ogdrb/main.py:756
 msgid "Select US states"
 msgstr ""
 
-#: src/ogdrb/main.py:774
+#: src/ogdrb/main.py:776
 msgid "Load Repeaters"
 msgstr ""
 
-#: src/ogdrb/main.py:777
+#: src/ogdrb/main.py:779
 msgid "Export"
 msgstr ""
 
-#: src/ogdrb/main.py:781
+#: src/ogdrb/main.py:783
 msgid "Delete selected zones"
 msgstr ""
 
-#: src/ogdrb/main.py:791
+#: src/ogdrb/main.py:793
 #, python-brace-format
 msgid "<a href='{url_github}' target='_blank'>OGDRB by MicaelJarniac</a>"
 msgstr ""
 
-#: src/ogdrb/main.py:798
+#: src/ogdrb/main.py:800
 #, python-brace-format
 msgid ""
 "This app is not affiliated with <a href='{url_opengd77}' "
@@ -120,7 +120,7 @@ msgid ""
 "target='_blank'>RepeaterBook</a>."
 msgstr ""
 
-#: src/ogdrb/main.py:810
+#: src/ogdrb/main.py:812
 #, python-brace-format
 msgid ""
 "All repeater data is from <a href='{url_repeaterbook}' "
@@ -128,7 +128,7 @@ msgid ""
 "href='{url_repeaterbook_api}' target='_blank'>public API</a>."
 msgstr ""
 
-#: src/ogdrb/main.py:824
+#: src/ogdrb/main.py:826
 #, python-brace-format
 msgid ""
 "\n"
@@ -196,27 +196,27 @@ msgid ""
 "            "
 msgstr ""
 
-#: src/ogdrb/main.py:885
+#: src/ogdrb/main.py:887
 msgid "Close"
 msgstr ""
 
-#: src/ogdrb/main.py:921
+#: src/ogdrb/main.py:923
 msgid "Name"
 msgstr ""
 
-#: src/ogdrb/main.py:922
+#: src/ogdrb/main.py:924
 msgid "Latitude"
 msgstr ""
 
-#: src/ogdrb/main.py:923
+#: src/ogdrb/main.py:925
 msgid "Longitude"
 msgstr ""
 
-#: src/ogdrb/main.py:924
+#: src/ogdrb/main.py:926
 msgid "Radius (km)"
 msgstr ""
 
-#: src/ogdrb/main.py:925
+#: src/ogdrb/main.py:927
 msgid "ID"
 msgstr ""
 
