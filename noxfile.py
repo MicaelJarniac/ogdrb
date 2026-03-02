@@ -104,7 +104,7 @@ def i18n_extract(session: nox.Session) -> None:
     )
 
 
-@nox.session(python=python_version)
+@nox.session(python=python_version, default=False)
 def i18n_init(session: nox.Session) -> None:
     """Initialize a new language catalog.  Pass the locale code as a positional arg."""
     install(session, groups=["i18n"], root=True)

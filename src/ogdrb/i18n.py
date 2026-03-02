@@ -156,16 +156,6 @@ class LanguageManager:
                     return lang
         return None
 
-    @property
-    def current(self) -> str:
-        """Return the current language code for the user."""
-        return cast("str", app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code))  # type: ignore[type-unknown]
-
-    @current.setter
-    def current(self, code: str) -> None:
-        """Set the current language code for the user."""
-        app.storage.user[LANGUAGE_KEY] = code
-
     @staticmethod
     def reload_if_changed(e: ValueChangeEventArguments) -> None:
         """Reload the page if the language has changed."""
