@@ -81,6 +81,9 @@ pre-commit = [
 automation = [
     "nox[uv]>=2026.2.9",
 ]
+i18n = [
+    "babel>=2.18.0",
+]
 dev = [
     {include-group = "tests"},
     {include-group = "benchmarking"},
@@ -168,6 +171,12 @@ addopts = [
 
 [tool.inline-snapshot]
 format-command = "ruff format --stdin-filename {filename}"
+
+[tool.babel]
+[[tool.babel.mappings]]
+method = "python"
+pattern = "**.py"
+keywords = ["t"]
 
 [tool.cruft]
 skip = [

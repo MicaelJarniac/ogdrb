@@ -4,13 +4,11 @@ from __future__ import annotations
 
 __all__: tuple[str, ...] = ()
 
-import gettext
 import json
 import os
 from datetime import UTC, datetime
 from enum import StrEnum
 from html import escape
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
 import pycountry
@@ -24,6 +22,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
+from ogdrb.i18n import language_manager, t
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
@@ -38,22 +37,6 @@ if TYPE_CHECKING:
     from nicegui.events import GenericEventArguments
     from pycountry.db import Country
     from repeaterbook import Repeater
-
-
-translation = gettext.translation(
-    "main", localedir=Path(__file__).parent / "locales", fallback=True
-)
-t = translation.gettext
-
-
-class ExternalURLs(StrEnum):
-    """External URLs."""
-
-    REPEATERBOOK = t("https://repeaterbook.com")
-    REPEATERBOOK_API = t("https://repeaterbook.com/wiki/doku.php?id=api")
-    REPEATERBOOK_PLUS = t("https://repeaterbook.com/index.php/rbplus")
-    OPENGD77 = t("https://opengd77.com")
-    GITHUB = t("https://github.com/MicaelJarniac/ogdrb")
 
 
 class Settings(BaseSettings):
@@ -536,6 +519,15 @@ class ZoneManager:
 
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
+    class ExternalURLs(StrEnum):
+        """External URLs."""
+
+        REPEATERBOOK = t("https://repeaterbook.com")
+        REPEATERBOOK_API = t("https://repeaterbook.com/wiki/doku.php?id=api")
+        REPEATERBOOK_PLUS = t("https://repeaterbook.com/index.php/rbplus")
+        OPENGD77 = t("https://opengd77.com")
+        GITHUB = t("https://github.com/MicaelJarniac/ogdrb")
+
     repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
@@ -743,7 +735,9 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     with ui.header():
         #' ui.button(icon="menu", on_click=drawer.toggle)
-        ui.label("OGDRB").classes("text-2xl")
+        with ui.column():
+            ui.label("OGDRB").classes("text-2xl")
+            language_manager.selector()
         with ui.column():
             with ui.row():
                 select_country = ui.select(
