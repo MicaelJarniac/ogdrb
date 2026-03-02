@@ -39,6 +39,16 @@ if TYPE_CHECKING:
     from repeaterbook import Repeater
 
 
+class ExternalURLs(StrEnum):
+    """External URLs."""
+
+    REPEATERBOOK = "https://repeaterbook.com"
+    REPEATERBOOK_API = "https://repeaterbook.com/wiki/doku.php?id=api"
+    REPEATERBOOK_PLUS = "https://repeaterbook.com/index.php/rbplus"
+    OPENGD77 = "https://opengd77.com"
+    GITHUB = "https://github.com/MicaelJarniac/ogdrb"
+
+
 class Settings(BaseSettings):
     """Settings for the app."""
 
@@ -521,15 +531,6 @@ class ZoneManager:
 async def index() -> None:  # noqa: C901, PLR0915
     language_manager.quasar_html()
 
-    class ExternalURLs(StrEnum):
-        """External URLs."""
-
-        REPEATERBOOK = t("https://repeaterbook.com")
-        REPEATERBOOK_API = t("https://repeaterbook.com/wiki/doku.php?id=api")
-        REPEATERBOOK_PLUS = t("https://repeaterbook.com/index.php/rbplus")
-        OPENGD77 = t("https://opengd77.com")
-        GITHUB = t("https://github.com/MicaelJarniac/ogdrb")
-
     repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
@@ -592,7 +593,7 @@ async def index() -> None:  # noqa: C901, PLR0915
 
                 # Create marker with custom icon for incompatible repeaters
                 title = f"{callsign} ({frequency} MHz)"
-                status = "" if compatible else t(" ⚠️ INCOMPATIBLE")
+                status = "" if compatible else " " + t("⚠️ INCOMPATIBLE")
                 popup = (
                     f"<b>{escape(callsign)}</b>{escape(status)}<br>"
                     f"{escape(city)}, {escape(state)}<br>"
@@ -822,68 +823,75 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     with ui.dialog() as dialog_help, ui.card():
-        ui.markdown(
-            t("""
-            # OGDRB
-            This app allows you to import repeaters from [RepeaterBook][rb] to
-            your [OpenGD77][ogd] radio.
-            You can add zones by drawing circles on the map, and then export the
-            codeplug as CSV files that can be imported into the OpenGD77
-            codeplug editor.
-
-            ## How to use
-            1. Select the countries you want to include in your codeplug.
-            If you select United States, also choose one or more states.
-            2. Click "Load Repeaters" to cache repeaters and display markers.
-            3. Draw circles on the map to define the zones you want to include
-            (or manually add to the list below).
-            4. Click the "Export" button to download the codeplug as a ZIP file.
-            5. Import the extracted folder into the OpenGD77 codeplug editor.
-            6. Upload the codeplug to your OpenGD77 radio.
-
-            ## Notes
-            - The circles you draw on the map define the zones for your
-            codeplug.
-            - You can edit the name, latitude, longitude, and radius of each
-            zone in the table by double-clicking on the cells.
-            - You can delete zones by selecting them in the table and clicking
-            the "Delete" button.
-            - You can add new zones by clicking the "New zone" button.
-            - You can select multiple zones by holding down the Ctrl key while
-            clicking on them.
-
-            ## Limits
-            Going beyond these limits may truncate the data, or result in
-            errors.
-            | Field               | Limit                    |
-            |---------------------|--------------------------|
-            | Zones               | {max_zones}              |
-            | Channels            | {max_channels}           |
-            | Channels Per Zone   | {max_channels_per_zone}  |
-            | Zone Name Length    | {max_chars_zone_name}    |
-            | Channel Name Length | {max_chars_channel_name} |
-
-            ## RepeaterBook
-            This app uses the [RepeaterBook API][rb_api] to fetch repeater data.
-            The API is free to use, but please consider donating or
-            [subscribing][rb_plus] to [RepeaterBook][rb] to support their work.
-
-            [rb]: {url_repeaterbook}
-            [rb_api]: {url_repeaterbook_api}
-            [rb_plus]: {url_repeaterbook_plus}
-            [ogd]: {url_opengd77}
-            """).format(
-                max_zones=Max.ZONES,
-                max_channels=Max.CHANNELS,
-                max_channels_per_zone=Max.CHANNELS_PER_ZONE,
-                max_chars_zone_name=Max.CHARS_ZONE_NAME,
-                max_chars_channel_name=Max.CHARS_CHANNEL_NAME,
+        help_sections = [
+            t(
+                "# OGDRB\n"
+                "This app allows you to import repeaters from "
+                "[RepeaterBook]({url_repeaterbook}) to your "
+                "[OpenGD77]({url_opengd77}) radio.\n"
+                "You can add zones by drawing circles on the map, and "
+                "then export the codeplug as CSV files that can be "
+                "imported into the OpenGD77 codeplug editor."
+            ).format(
                 url_repeaterbook=ExternalURLs.REPEATERBOOK,
-                url_repeaterbook_api=ExternalURLs.REPEATERBOOK_API,
-                url_repeaterbook_plus=ExternalURLs.REPEATERBOOK_PLUS,
                 url_opengd77=ExternalURLs.OPENGD77,
+            ),
+            t(
+                "## How to use\n"
+                "1. Select the countries you want to include in your "
+                "codeplug. If you select United States, also choose one "
+                "or more states.\n"
+                '2. Click "Load Repeaters" to cache repeaters and '
+                "display markers.\n"
+                "3. Draw circles on the map to define the zones you "
+                "want to include (or manually add to the list below).\n"
+                '4. Click the "Export" button to download the codeplug '
+                "as a ZIP file.\n"
+                "5. Import the extracted folder into the OpenGD77 "
+                "codeplug editor.\n"
+                "6. Upload the codeplug to your OpenGD77 radio."
+            ),
+            t(
+                "## Notes\n"
+                "- The circles you draw on the map define the zones "
+                "for your codeplug.\n"
+                "- You can edit the name, latitude, longitude, and "
+                "radius of each zone in the table by double-clicking "
+                "on the cells.\n"
+                "- You can delete zones by selecting them in the "
+                'table and clicking the "Delete" button.\n'
+                "- You can add new zones by clicking the "
+                '"New Zone" button.\n'
+                "- You can select multiple zones by holding down the "
+                "Ctrl key while clicking on them."
+            ),
+            t(
+                "## Limits\n"
+                "Going beyond these limits may truncate the data, or "
+                "result in errors."
             )
-        )
+            + "\n\n"
+            + f"| {t('Field')} | {t('Limit')} |\n"
+            + "|---|---|\n"
+            + f"| {t('Zones')} | {Max.ZONES} |\n"
+            + f"| {t('Channels')} | {Max.CHANNELS} |\n"
+            + f"| {t('Channels Per Zone')} | {Max.CHANNELS_PER_ZONE} |\n"
+            + f"| {t('Zone Name Length')} | {Max.CHARS_ZONE_NAME} |\n"
+            + f"| {t('Channel Name Length')} | {Max.CHARS_CHANNEL_NAME} |",
+            t(
+                "## RepeaterBook\n"
+                "This app uses the [RepeaterBook API]({url_api}) to "
+                "fetch repeater data. The API is free to use, but "
+                "please consider donating or "
+                "[subscribing]({url_plus}) to "
+                "[RepeaterBook]({url_rb}) to support their work."
+            ).format(
+                url_rb=ExternalURLs.REPEATERBOOK,
+                url_api=ExternalURLs.REPEATERBOOK_API,
+                url_plus=ExternalURLs.REPEATERBOOK_PLUS,
+            ),
+        ]
+        ui.markdown("\n\n".join(help_sections))
         ui.button(t("Close"), on_click=dialog_help.close)
 
     # Leaflet map with circle-only draw toolbar
