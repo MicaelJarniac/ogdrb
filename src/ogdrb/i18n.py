@@ -7,6 +7,7 @@ __all__: tuple[str, ...] = (
     "LanguageManager",
     "language_manager",
     "t",
+    "territory_name",
 )
 
 import gettext
@@ -125,6 +126,23 @@ def t(message: str) -> str:
     except Exception:  # noqa: BLE001
         lang_code = DEFAULT_LANGUAGE.code
     return _get_translation(lang_code).gettext(message)
+
+
+def territory_name(alpha_2: str) -> str:
+    """Return the localized territory name for an ISO 3166-1 alpha-2 code.
+
+    Uses the current user's language.  Falls back to *alpha_2* when no
+    translation is available.
+    """
+    try:
+        lang_code: str = cast(
+            "str",
+            app.storage.user.get(LANGUAGE_KEY, DEFAULT_LANGUAGE.code),  # type: ignore[type-unknown]
+        )
+    except Exception:  # noqa: BLE001
+        lang_code = DEFAULT_LANGUAGE.code
+    locale = Locale.parse(lang_code.replace("-", "_"))
+    return str(locale.territories.get(alpha_2, alpha_2))
 
 
 class LanguageManager:

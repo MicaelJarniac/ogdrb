@@ -22,7 +22,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
-from ogdrb.i18n import language_manager, t
+from ogdrb.i18n import language_manager, t, territory_name
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
@@ -746,7 +746,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                     multiple=True,
                     clearable=True,
                     options={
-                        country.alpha_2: country.name  # type: ignore[no-untyped-call]
+                        country.alpha_2: territory_name(country.alpha_2)  # type: ignore[no-untyped-call]
                         for country in pycountry.countries
                     },
                 )
