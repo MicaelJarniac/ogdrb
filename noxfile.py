@@ -94,12 +94,22 @@ def test_code(session: nox.Session) -> None:
 def i18n_extract(session: nox.Session) -> None:
     """Extract translatable strings to POT file."""
     install(session, groups=["i18n"], root=True)
+    version = session.run(
+        "python",
+        "-c",
+        "import tomllib, pathlib; "
+        "print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])",
+        silent=True,
+    ).strip()  # type: ignore[union-attr]
     session.run(
         "pybabel",
         "extract",
         "--keywords=t",
         "--output=src/ogdrb/locales/ogdrb.pot",
         "--project=ogdrb",
+        f"--version={version}",
+        "--copyright-holder=Micael Jarniac",
+        "--msgid-bugs-address=https://github.com/MicaelJarniac/ogdrb/issues",
         "src/ogdrb/",
     )
 
