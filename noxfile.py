@@ -88,3 +88,66 @@ def test_code(session: nox.Session) -> None:
     """Test code."""
     install(session, groups=["tests"], root=True, extras=True)
     session.run("pytest")
+
+
+@nox.session(python=python_version)
+def i18n_extract(session: nox.Session) -> None:
+    """Extract translatable strings to POT file."""
+    install(session, groups=["i18n"], root=True)
+    session.run(
+        "pybabel",
+        "extract",
+        "--keywords=t",
+        "--output=src/ogdrb/locales/ogdrb.pot",
+        "--project=ogdrb",
+        "src/ogdrb/",
+    )
+
+
+@nox.session(python=python_version)
+def i18n_init(session: nox.Session) -> None:
+    """Initialize a new language catalog.  Pass the locale code as a positional arg."""
+    install(session, groups=["i18n"], root=True)
+    locale = session.posargs[0] if session.posargs else "pt_BR"
+    session.run(
+        "pybabel",
+        "init",
+        "-i",
+        "src/ogdrb/locales/ogdrb.pot",
+        "-d",
+        "src/ogdrb/locales",
+        "-l",
+        locale,
+        "-D",
+        "ogdrb",
+    )
+
+
+@nox.session(python=python_version)
+def i18n_update(session: nox.Session) -> None:
+    """Update existing catalogs from the POT template."""
+    install(session, groups=["i18n"], root=True)
+    session.run(
+        "pybabel",
+        "update",
+        "-i",
+        "src/ogdrb/locales/ogdrb.pot",
+        "-d",
+        "src/ogdrb/locales",
+        "-D",
+        "ogdrb",
+    )
+
+
+@nox.session(python=python_version)
+def i18n_compile(session: nox.Session) -> None:
+    """Compile message catalogs to MO files."""
+    install(session, groups=["i18n"], root=True)
+    session.run(
+        "pybabel",
+        "compile",
+        "-d",
+        "src/ogdrb/locales",
+        "-D",
+        "ogdrb",
+    )
