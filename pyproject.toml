@@ -173,12 +173,6 @@ addopts = [
 [tool.inline-snapshot]
 format-command = "ruff format --stdin-filename {filename}"
 
-[tool.babel.extract_messages]
-keywords = ["t"]
-mapping = [{method = "python", pattern = "src/ogdrb/**.py"}]
-output_file = "src/ogdrb/locales/ogdrb.pot"
-project = "ogdrb"
-
 [tool.cruft]
 skip = [
   "src",
