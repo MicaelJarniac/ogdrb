@@ -40,7 +40,7 @@ async def test_initial_page_elements(user: User) -> None:
     await user.should_not_see(SELECT_US_STATES_LABEL)
     await user.should_see(LOAD_REPEATERS_LABEL)
     await user.should_see(EXPORT_LABEL)
-    await user.should_see("New zone")
+    await user.should_see("New Zone")
     await user.should_see("Delete selected zones")
 
 

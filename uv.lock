@@ -1238,6 +1238,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anyio" },
     { name = "attrs" },
+    { name = "babel" },
     { name = "haversine" },
     { name = "loguru" },
     { name = "nicegui" },
@@ -1286,6 +1287,9 @@ docs = [
     { name = "sphinx" },
     { name = "sphinxcontrib-spelling" },
 ]
+i18n = [
+    { name = "babel" },
+]
 linting = [
     { name = "ruff" },
 ]
@@ -1317,6 +1321,7 @@ typing = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.12.1" },
     { name = "attrs", specifier = ">=25.4.0" },
+    { name = "babel", specifier = ">=2.18.0" },
     { name = "haversine", specifier = ">=2.9.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "nicegui", specifier = ">=3.8.0" },
@@ -1363,6 +1368,7 @@ docs = [
     { name = "sphinx", specifier = ">=9.1.0" },
     { name = "sphinxcontrib-spelling", specifier = ">=8.0.2" },
 ]
+i18n = [{ name = "babel", specifier = ">=2.18.0" }]
 linting = [{ name = "ruff", specifier = ">=0.15.2" }]
 pre-commit = [{ name = "pre-commit", specifier = ">=4.5.1" }]
 tests = [

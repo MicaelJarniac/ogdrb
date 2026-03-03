@@ -22,6 +22,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
+from ogdrb.i18n import language_manager, t, territory_name
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
@@ -173,6 +174,16 @@ class ZoneManager:
         row_id = self._next_id
         self._next_id += 1
         return row_id
+
+    def _new_zone_name(self) -> str:
+        existing_names = {row["name"] for row in self._rows}
+        base_name = t("New Zone")
+        if base_name not in existing_names:
+            return base_name
+        suffix = 2
+        while f"{base_name} {suffix}" in existing_names:
+            suffix += 1
+        return f"{base_name} {suffix}"
 
     def _register(self, row_id: int, leaflet_id: int) -> None:
         self._row_to_leaflet[row_id] = leaflet_id
@@ -362,9 +373,10 @@ class ZoneManager:
         radius_m = layer["_mRadius"]
 
         row_id = self._new_id()
+        row_name = self._new_zone_name()
         new_row = ZoneRow(
             id=row_id,
-            name="New Zone",
+            name=row_name,
             lat=center["lat"],
             lng=center["lng"],
             radius=radius_m / 1000,
@@ -466,7 +478,8 @@ class ZoneManager:
         """Add a new zone from the 'New zone' button."""
         radius = 50.0  # default radius in km
         row_id = self._new_id()
-        new_row = ZoneRow(id=row_id, name="New Zone", lat=0.0, lng=0.0, radius=radius)
+        row_name = self._new_zone_name()
+        new_row = ZoneRow(id=row_id, name=row_name, lat=0.0, lng=0.0, radius=radius)
         self._rows.append(new_row)
         leaflet_id = await self._js_add_circle(0.0, 0.0, radius * 1000, row_id)
         if leaflet_id is not None:
@@ -516,6 +529,8 @@ class ZoneManager:
 
 @ui.page("/", response_timeout=20)
 async def index() -> None:  # noqa: C901, PLR0915
+    language_manager.quasar_html()
+
     repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
@@ -530,12 +545,12 @@ async def index() -> None:  # noqa: C901, PLR0915
     def validate_filters() -> CountrySelection | None:
         selected_country_codes, selected_us_states, countries = selected_filters()
         if not countries:
-            ui.notify("Please select at least one country.", type="warning")
+            ui.notify(t("Please select at least one country."), type="warning")
             select_country.props("error")
             return None
         us_selected = US_COUNTRY_CODE in selected_country_codes
         if us_selected and not selected_us_states:
-            ui.notify("Please select at least one US state.", type="warning")
+            ui.notify(t("Please select at least one US state."), type="warning")
             select_us_state.props("error")
             return None
         return CountrySelection(selected_country_codes, selected_us_states, countries)
@@ -558,7 +573,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             for repeater in chunk:
                 lat = float(repeater.latitude)
                 lng = float(repeater.longitude)
-                callsign = repeater.callsign or "Unknown"
+                callsign = repeater.callsign or t("Unknown")
                 city = repeater.location_nearest_city
                 state = repeater.state or ""
                 country = repeater.country or ""
@@ -578,7 +593,7 @@ async def index() -> None:  # noqa: C901, PLR0915
 
                 # Create marker with custom icon for incompatible repeaters
                 title = f"{callsign} ({frequency} MHz)"
-                status = "" if compatible else " ⚠️ INCOMPATIBLE"
+                status = "" if compatible else " " + t("⚠️ INCOMPATIBLE")
                 popup = (
                     f"<b>{escape(callsign)}</b>{escape(status)}<br>"
                     f"{escape(city)}, {escape(state)}<br>"
@@ -646,13 +661,14 @@ async def index() -> None:  # noqa: C901, PLR0915
 
             await sync_repeater_markers(all_repeaters, compatible_ids)
         except ValueError as e:
-            ui.notify(f"Error: {e}", type="negative")
+            ui.notify(t("Error: {}").format(e), type="negative")
             return
         finally:
             loading.set_visibility(False)
         ui.notify(
-            f"Loaded {len(all_repeaters)} repeaters "
-            f"({len(compatible_ids)} compatible).",
+            t("Loaded {} repeaters ({} compatible).").format(
+                len(all_repeaters), len(compatible_ids)
+            ),
             type="positive",
         )
 
@@ -663,10 +679,10 @@ async def index() -> None:  # noqa: C901, PLR0915
         _, selected_us_states, countries = filters
         zone_rows = zm.rows
         if not zone_rows:
-            ui.notify("Please add at least one zone.", type="warning")
+            ui.notify(t("Please add at least one zone."), type="warning")
             return
         if len(zone_rows) != len({row["name"] for row in zone_rows}):
-            ui.notify("Duplicate zone names found.", type="warning")
+            ui.notify(t("Duplicate zone names found."), type="warning")
             return
 
         logger.info("Exporting {} zones:", len(zone_rows))
@@ -699,13 +715,13 @@ async def index() -> None:  # noqa: C901, PLR0915
                 logger.info("  Zone '{}': {} repeaters", zone_name, len(repeaters))
             if not any(repeaters_by_zone.values()):
                 ui.notify(
-                    "No repeaters found. Please load repeaters first.",
+                    t("No repeaters found. Please load repeaters first."),
                     type="warning",
                 )
                 return
             codeplug = organize(repeaters_by_zone)
         except ValueError as e:
-            ui.notify(f"Error: {e}", type="negative")
+            ui.notify(t("Error: {}").format(e), type="negative")
             return
         finally:
             loading.set_visibility(False)
@@ -722,21 +738,23 @@ async def index() -> None:  # noqa: C901, PLR0915
 
     with ui.header():
         #' ui.button(icon="menu", on_click=drawer.toggle)
-        ui.label("OGDRB").classes("text-2xl")
+        with ui.column():
+            ui.label("OGDRB").classes("text-2xl")
+            language_manager.selector()
         with ui.column():
             with ui.row():
                 select_country = ui.select(
-                    label="Select countries",
+                    label=t("Select countries"),
                     with_input=True,
                     multiple=True,
                     clearable=True,
                     options={
-                        country.alpha_2: country.name  # type: ignore[no-untyped-call]
+                        country.alpha_2: territory_name(country.alpha_2)  # type: ignore[no-untyped-call]
                         for country in pycountry.countries
                     },
                 )
                 select_us_state = ui.select(
-                    label="Select US states",
+                    label=t("Select US states"),
                     with_input=True,
                     multiple=True,
                     clearable=True,
@@ -756,14 +774,14 @@ async def index() -> None:  # noqa: C901, PLR0915
             select_country.on_value_change(lambda _: sync_us_states_visibility())
 
             with ui.row():
-                ui.button("Load Repeaters", on_click=populate_repeaters).props(
+                ui.button(t("Load Repeaters"), on_click=populate_repeaters).props(
                     "icon=cloud_download"
                 )
-                ui.button("Export", on_click=export).props("icon=save")
-                new_zone = ui.button("New zone").props(
+                ui.button(t("Export"), on_click=export).props("icon=save")
+                new_zone = ui.button(t("New Zone")).props(
                     "icon=add color=green",
                 )
-                delete_zones = ui.button("Delete selected zones").props(
+                delete_zones = ui.button(t("Delete selected zones")).props(
                     "icon=delete color=red",
                 )
                 loading = ui.spinner("dots", size="lg", color="red")
@@ -772,80 +790,109 @@ async def index() -> None:  # noqa: C901, PLR0915
     with ui.footer():
         # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
-            f"<a href='{ExternalURLs.GITHUB}' target='_blank'>"
-            "OGDRB by MicaelJarniac</a>",
+            t(
+                "<a href='{url_github}' target='_blank'>OGDRB by MicaelJarniac</a>"
+            ).format(url_github=ExternalURLs.GITHUB),
             sanitize=False,
         ).classes("text-sm")
         # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
-            "This app is not affiliated "
-            f"with <a href='{ExternalURLs.OPENGD77}' target='_blank'>OpenGD77</a> "
-            f"or <a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>"
-            "RepeaterBook</a>.",
+            t(
+                "This app is not affiliated "
+                "with <a href='{url_opengd77}' target='_blank'>OpenGD77</a> "
+                "or <a href='{url_repeaterbook}' target='_blank'>RepeaterBook</a>."
+            ).format(
+                url_opengd77=ExternalURLs.OPENGD77,
+                url_repeaterbook=ExternalURLs.REPEATERBOOK,
+            ),
             sanitize=False,
         )
         # sanitize=False: static content with trusted HTML anchor tags
         ui.html(
-            "All repeater data is from "
-            f"<a href='{ExternalURLs.REPEATERBOOK}' target='_blank'>RepeaterBook</a>, "
-            "using their "
-            f"<a href='{ExternalURLs.REPEATERBOOK_API}' target='_blank'>"
-            "public API</a>.",
+            t(
+                "All repeater data is from "
+                "<a href='{url_repeaterbook}' target='_blank'>RepeaterBook</a>, "
+                "using their "
+                "<a href='{url_repeaterbook_api}' target='_blank'>"
+                "public API</a>."
+            ).format(
+                url_repeaterbook=ExternalURLs.REPEATERBOOK,
+                url_repeaterbook_api=ExternalURLs.REPEATERBOOK_API,
+            ),
             sanitize=False,
         )
 
     with ui.dialog() as dialog_help, ui.card():
-        ui.markdown(f"""
-                    # OGDRB
-                    This app allows you to import repeaters from [RepeaterBook][rb] to
-                    your [OpenGD77][ogd] radio.
-                    You can add zones by drawing circles on the map, and then export the
-                    codeplug as CSV files that can be imported into the OpenGD77
-                    codeplug editor.
-
-                    ## How to use
-                    1. Select the countries you want to include in your codeplug.
-                    If you select United States, also choose one or more states.
-                    2. Click "Load Repeaters" to cache repeaters and display markers.
-                    3. Draw circles on the map to define the zones you want to include
-                    (or manually add to the list below).
-                    4. Click the "Export" button to download the codeplug as a ZIP file.
-                    5. Import the extracted folder into the OpenGD77 codeplug editor.
-                    6. Upload the codeplug to your OpenGD77 radio.
-
-                    ## Notes
-                    - The circles you draw on the map define the zones for your
-                    codeplug.
-                    - You can edit the name, latitude, longitude, and radius of each
-                    zone in the table by double-clicking on the cells.
-                    - You can delete zones by selecting them in the table and clicking
-                    the "Delete" button.
-                    - You can add new zones by clicking the "New zone" button.
-                    - You can select multiple zones by holding down the Ctrl key while
-                    clicking on them.
-
-                    ## Limits
-                    Going beyond these limits may truncate the data, or result in
-                    errors.
-                    | Field               | Limit                    |
-                    |---------------------|--------------------------|
-                    | Zones               | {Max.ZONES}              |
-                    | Channels            | {Max.CHANNELS}           |
-                    | Channels Per Zone   | {Max.CHANNELS_PER_ZONE}  |
-                    | Zone Name Length    | {Max.CHARS_ZONE_NAME}    |
-                    | Channel Name Length | {Max.CHARS_CHANNEL_NAME} |
-
-                    ## RepeaterBook
-                    This app uses the [RepeaterBook API][rb_api] to fetch repeater data.
-                    The API is free to use, but please consider donating or
-                    [subscribing][rb_plus] to [RepeaterBook][rb] to support their work.
-
-                    [rb]: {ExternalURLs.REPEATERBOOK}
-                    [rb_api]: {ExternalURLs.REPEATERBOOK_API}
-                    [rb_plus]: {ExternalURLs.REPEATERBOOK_PLUS}
-                    [ogd]: {ExternalURLs.OPENGD77}
-                    """)
-        ui.button("Close", on_click=dialog_help.close)
+        help_sections = [
+            t(
+                "# OGDRB\n"
+                "This app allows you to import repeaters from "
+                "[RepeaterBook]({url_repeaterbook}) to your "
+                "[OpenGD77]({url_opengd77}) radio.\n"
+                "You can add zones by drawing circles on the map, and "
+                "then export the codeplug as CSV files that can be "
+                "imported into the OpenGD77 codeplug editor."
+            ).format(
+                url_repeaterbook=ExternalURLs.REPEATERBOOK,
+                url_opengd77=ExternalURLs.OPENGD77,
+            ),
+            t(
+                "## How to use\n"
+                "1. Select the countries you want to include in your "
+                "codeplug. If you select United States, also choose one "
+                "or more states.\n"
+                '2. Click "Load Repeaters" to cache repeaters and '
+                "display markers.\n"
+                "3. Draw circles on the map to define the zones you "
+                "want to include (or manually add to the list below).\n"
+                '4. Click the "Export" button to download the codeplug '
+                "as a ZIP file.\n"
+                "5. Import the extracted folder into the OpenGD77 "
+                "codeplug editor.\n"
+                "6. Upload the codeplug to your OpenGD77 radio."
+            ),
+            t(
+                "## Notes\n"
+                "- The circles you draw on the map define the zones "
+                "for your codeplug.\n"
+                "- You can edit the name, latitude, longitude, and "
+                "radius of each zone in the table by double-clicking "
+                "on the cells.\n"
+                "- You can delete zones by selecting them in the "
+                'table and clicking the "Delete" button.\n'
+                "- You can add new zones by clicking the "
+                '"New Zone" button.\n'
+                "- You can select multiple zones by holding down the "
+                "Ctrl key while clicking on them."
+            ),
+            t(
+                "## Limits\n"
+                "Going beyond these limits may truncate the data, or "
+                "result in errors."
+            )
+            + "\n\n"
+            + f"| {t('Field')} | {t('Limit')} |\n"
+            + "|---|---|\n"
+            + f"| {t('Zones')} | {Max.ZONES} |\n"
+            + f"| {t('Channels')} | {Max.CHANNELS} |\n"
+            + f"| {t('Channels Per Zone')} | {Max.CHANNELS_PER_ZONE} |\n"
+            + f"| {t('Zone Name Length')} | {Max.CHARS_ZONE_NAME} |\n"
+            + f"| {t('Channel Name Length')} | {Max.CHARS_CHANNEL_NAME} |",
+            t(
+                "## RepeaterBook\n"
+                "This app uses the [RepeaterBook API]({url_api}) to "
+                "fetch repeater data. The API is free to use, but "
+                "please consider donating or "
+                "[subscribing]({url_plus}) to "
+                "[RepeaterBook]({url_rb}) to support their work."
+            ).format(
+                url_rb=ExternalURLs.REPEATERBOOK,
+                url_api=ExternalURLs.REPEATERBOOK_API,
+                url_plus=ExternalURLs.REPEATERBOOK_PLUS,
+            ),
+        ]
+        ui.markdown("\n\n".join(help_sections))
+        ui.button(t("Close"), on_click=dialog_help.close)
 
     # Leaflet map with circle-only draw toolbar
     m = ui.leaflet(
@@ -881,11 +928,11 @@ async def index() -> None:  # noqa: C901, PLR0915
     )
 
     columns = [
-        AGColumnDef(field="name", headerName="Name", editable=True),
-        AGColumnDef(field="lat", headerName="Latitude", editable=True),
-        AGColumnDef(field="lng", headerName="Longitude", editable=True),
-        AGColumnDef(field="radius", headerName="Radius (km)", editable=True),
-        AGColumnDef(field="id", headerName="ID", hide=True),
+        AGColumnDef(field="name", headerName=t("Name"), editable=True),
+        AGColumnDef(field="lat", headerName=t("Latitude"), editable=True),
+        AGColumnDef(field="lng", headerName=t("Longitude"), editable=True),
+        AGColumnDef(field="radius", headerName=t("Radius (km)"), editable=True),
+        AGColumnDef(field="id", headerName=t("ID"), hide=True),
     ]
 
     aggrid = ui.aggrid(

@@ -1,0 +1,258 @@
+# Portuguese (Brazil) translations for ogdrb.
+# Copyright (C) 2026 Micael Jarniac
+# This file is distributed under the same license as the ogdrb project.
+# Micael Jarniac <micael@jarniac.dev>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ogdrb 0.5.0\n"
+"Report-Msgid-Bugs-To: micael@jarniac.dev\n"
+"POT-Creation-Date: 2026-03-02 15:27-0300\n"
+"PO-Revision-Date: 2026-03-02 11:22-0300\n"
+"Last-Translator: Micael Jarniac <micael@jarniac.dev>\n"
+"Language: pt_BR\n"
+"Language-Team: pt_BR <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: src/ogdrb/i18n.py:188
+msgid "Language changed. Reloading."
+msgstr "Idioma alterado. Recarregando."
+
+#: src/ogdrb/i18n.py:207
+msgid "Language"
+msgstr "Idioma"
+
+#: src/ogdrb/main.py:180 src/ogdrb/main.py:781
+msgid "New Zone"
+msgstr "Nova Zona"
+
+#: src/ogdrb/main.py:548
+msgid "Please select at least one country."
+msgstr "Por favor, selecione pelo menos um país."
+
+#: src/ogdrb/main.py:553
+msgid "Please select at least one US state."
+msgstr "Por favor, selecione pelo menos um estado dos EUA."
+
+#: src/ogdrb/main.py:576
+msgid "Unknown"
+msgstr "Desconhecido"
+
+#: src/ogdrb/main.py:596
+msgid "⚠️ INCOMPATIBLE"
+msgstr "⚠️ INCOMPATÍVEL"
+
+#: src/ogdrb/main.py:664 src/ogdrb/main.py:724
+#, python-brace-format
+msgid "Error: {}"
+msgstr "Erro: {}"
+
+#: src/ogdrb/main.py:669
+#, python-brace-format
+msgid "Loaded {} repeaters ({} compatible)."
+msgstr "{} repetidoras carregadas ({} compatíveis)."
+
+#: src/ogdrb/main.py:682
+msgid "Please add at least one zone."
+msgstr "Por favor, adicione pelo menos uma zona."
+
+#: src/ogdrb/main.py:685
+msgid "Duplicate zone names found."
+msgstr "Nomes de zona duplicados encontrados."
+
+#: src/ogdrb/main.py:718
+msgid "No repeaters found. Please load repeaters first."
+msgstr ""
+"Nenhuma repetidora encontrada. Por favor, carregue as repetidoras "
+"primeiro."
+
+#: src/ogdrb/main.py:747
+msgid "Select countries"
+msgstr "Selecionar países"
+
+#: src/ogdrb/main.py:757
+msgid "Select US states"
+msgstr "Selecionar estados dos EUA"
+
+#: src/ogdrb/main.py:777
+msgid "Load Repeaters"
+msgstr "Carregar Repetidoras"
+
+#: src/ogdrb/main.py:780
+msgid "Export"
+msgstr "Exportar"
+
+#: src/ogdrb/main.py:784
+msgid "Delete selected zones"
+msgstr "Excluir zonas selecionadas"
+
+#: src/ogdrb/main.py:794
+#, python-brace-format
+msgid "<a href='{url_github}' target='_blank'>OGDRB by MicaelJarniac</a>"
+msgstr "<a href='{url_github}' target='_blank'>OGDRB por MicaelJarniac</a>"
+
+#: src/ogdrb/main.py:801
+#, python-brace-format
+msgid ""
+"This app is not affiliated with <a href='{url_opengd77}' "
+"target='_blank'>OpenGD77</a> or <a href='{url_repeaterbook}' "
+"target='_blank'>RepeaterBook</a>."
+msgstr ""
+"Este aplicativo não é afiliado ao <a href='{url_opengd77}' "
+"target='_blank'>OpenGD77</a> ou ao <a href='{url_repeaterbook}' "
+"target='_blank'>RepeaterBook</a>."
+
+#: src/ogdrb/main.py:813
+#, python-brace-format
+msgid ""
+"All repeater data is from <a href='{url_repeaterbook}' "
+"target='_blank'>RepeaterBook</a>, using their <a "
+"href='{url_repeaterbook_api}' target='_blank'>public API</a>."
+msgstr ""
+"Todos os dados de repetidoras são do <a href='{url_repeaterbook}' "
+"target='_blank'>RepeaterBook</a>, usando sua <a "
+"href='{url_repeaterbook_api}' target='_blank'>API pública</a>."
+
+#: src/ogdrb/main.py:828
+#, python-brace-format
+msgid ""
+"# OGDRB\n"
+"This app allows you to import repeaters from "
+"[RepeaterBook]({url_repeaterbook}) to your [OpenGD77]({url_opengd77}) "
+"radio.\n"
+"You can add zones by drawing circles on the map, and then export the "
+"codeplug as CSV files that can be imported into the OpenGD77 codeplug "
+"editor."
+msgstr ""
+"# OGDRB\n"
+"Este aplicativo permite importar repetidoras do "
+"[RepeaterBook]({url_repeaterbook}) para o seu rádio "
+"[OpenGD77]({url_opengd77}).\n"
+"Você pode adicionar zonas desenhando círculos no mapa e então exportar "
+"o codeplug como arquivos CSV que podem ser importados no editor de "
+"codeplug do OpenGD77."
+
+#: src/ogdrb/main.py:840
+msgid ""
+"## How to use\n"
+"1. Select the countries you want to include in your codeplug. If you "
+"select United States, also choose one or more states.\n"
+"2. Click \"Load Repeaters\" to cache repeaters and display markers.\n"
+"3. Draw circles on the map to define the zones you want to include (or "
+"manually add to the list below).\n"
+"4. Click the \"Export\" button to download the codeplug as a ZIP file.\n"
+"5. Import the extracted folder into the OpenGD77 codeplug editor.\n"
+"6. Upload the codeplug to your OpenGD77 radio."
+msgstr ""
+"## Como usar\n"
+"1. Selecione os países que deseja incluir no seu codeplug. Se "
+"selecionar Estados Unidos, escolha também um ou mais estados.\n"
+"2. Clique em \"Carregar Repetidoras\" para armazenar as repetidoras e "
+"exibir marcadores.\n"
+"3. Desenhe círculos no mapa para definir as zonas que deseja incluir "
+"(ou adicione manualmente na lista abaixo).\n"
+"4. Clique no botão \"Exportar\" para baixar o codeplug como um arquivo "
+"ZIP.\n"
+"5. Importe a pasta extraída no editor de codeplug do OpenGD77.\n"
+"6. Envie o codeplug para o seu rádio OpenGD77."
+
+#: src/ogdrb/main.py:855
+msgid ""
+"## Notes\n"
+"- The circles you draw on the map define the zones for your codeplug.\n"
+"- You can edit the name, latitude, longitude, and radius of each zone in "
+"the table by double-clicking on the cells.\n"
+"- You can delete zones by selecting them in the table and clicking the "
+"\"Delete\" button.\n"
+"- You can add new zones by clicking the \"New Zone\" button.\n"
+"- You can select multiple zones by holding down the Ctrl key while "
+"clicking on them."
+msgstr ""
+"## Observações\n"
+"- Os círculos desenhados no mapa definem as zonas do seu codeplug.\n"
+"- Você pode editar o nome, latitude, longitude e raio de cada zona na "
+"tabela clicando duas vezes nas células.\n"
+"- Você pode excluir zonas selecionando-as na tabela e clicando no "
+"botão \"Excluir\".\n"
+"- Você pode adicionar novas zonas clicando no botão \"Nova Zona\".\n"
+"- Você pode selecionar múltiplas zonas segurando a tecla Ctrl enquanto "
+"clica nelas."
+
+#: src/ogdrb/main.py:869
+msgid ""
+"## Limits\n"
+"Going beyond these limits may truncate the data, or result in errors."
+msgstr ""
+"## Limites\n"
+"Ultrapassar estes limites pode truncar os dados ou resultar em erros."
+
+#: src/ogdrb/main.py:874
+msgid "Field"
+msgstr "Campo"
+
+#: src/ogdrb/main.py:874
+msgid "Limit"
+msgstr "Limite"
+
+#: src/ogdrb/main.py:876
+msgid "Zones"
+msgstr "Zonas"
+
+#: src/ogdrb/main.py:877
+msgid "Channels"
+msgstr "Canais"
+
+#: src/ogdrb/main.py:878
+msgid "Channels Per Zone"
+msgstr "Canais Por Zona"
+
+#: src/ogdrb/main.py:879
+msgid "Zone Name Length"
+msgstr "Tamanho Nome Zona"
+
+#: src/ogdrb/main.py:880
+msgid "Channel Name Length"
+msgstr "Tamanho Nome Canal"
+
+#: src/ogdrb/main.py:882
+#, python-brace-format
+msgid ""
+"## RepeaterBook\n"
+"This app uses the [RepeaterBook API]({url_api}) to fetch repeater data. "
+"The API is free to use, but please consider donating or "
+"[subscribing]({url_plus}) to [RepeaterBook]({url_rb}) to support their "
+"work."
+msgstr ""
+"## RepeaterBook\n"
+"Este aplicativo usa a [API do RepeaterBook]({url_api}) para buscar "
+"dados de repetidoras. A API é gratuita, mas considere doar ou "
+"[assinar]({url_plus}) o [RepeaterBook]({url_rb}) para apoiar o "
+"trabalho deles."
+
+#: src/ogdrb/main.py:895
+msgid "Close"
+msgstr "Fechar"
+
+#: src/ogdrb/main.py:931
+msgid "Name"
+msgstr "Nome"
+
+#: src/ogdrb/main.py:932
+msgid "Latitude"
+msgstr "Latitude"
+
+#: src/ogdrb/main.py:933
+msgid "Longitude"
+msgstr "Longitude"
+
+#: src/ogdrb/main.py:934
+msgid "Radius (km)"
+msgstr "Raio (km)"
+
+#: src/ogdrb/main.py:935
+msgid "ID"
+msgstr "ID"

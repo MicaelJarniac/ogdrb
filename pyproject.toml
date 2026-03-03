@@ -21,6 +21,7 @@ classifiers = [
 requires-python = ">=3.14"  # py_ver
 dependencies = [
     "anyio>=4.12.1",
+    "babel>=2.18.0",
     "attrs>=25.4.0",
     "haversine>=2.9.0",
     "loguru>=0.7.3",
@@ -80,6 +81,9 @@ pre-commit = [
 ]
 automation = [
     "nox[uv]>=2026.2.9",
+]
+i18n = [
+    "babel>=2.18.0",
 ]
 dev = [
     {include-group = "tests"},

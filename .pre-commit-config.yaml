@@ -6,5 +6,7 @@ repos:
     -   id: check-yaml
     -   id: check-json
     -   id: end-of-file-fixer
+        exclude: '\.po$|\.pot$'
     -   id: trailing-whitespace
+        exclude: '\.po$|\.pot$'
     -   id: requirements-txt-fixer
