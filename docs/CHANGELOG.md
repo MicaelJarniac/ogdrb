@@ -1,6 +1,189 @@
 # CHANGELOG
 
 
+## v0.6.0 (2026-03-03)
+
+### Bug Fixes
+
+- Harden i18n storage access and browser language parsing
+  ([`57cb4e8`](https://github.com/MicaelJarniac/ogdrb/commit/57cb4e8465f3493537721c366b71f9872eed66b1))
+
+- Add _current_lang_code() helper to DRY up duplicated storage access - Fix territory_name() None
+  guard (replace type:ignore with proper check) - Fix quasar_html() and selector() crashes outside
+  request context - Fix browser_language Accept-Language parsing to strip quality values - Add tests
+  for _flag_emoji, _discover_languages, _current_lang_code, t(), territory_name, and LanguageManager
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+### Build System
+
+- Add babel runtime dep and i18n build config
+  ([`3f2afad`](https://github.com/MicaelJarniac/ogdrb/commit/3f2afadbd307871edde0655483193bc213a7d488))
+
+- Move babel from optional i18n group to runtime dependencies - Update babel extraction config
+  (keywords, mapping, output path) - Add .gitignore negation patterns to track locale files (*.pot,
+  *.mo) - Ignore .nicegui directory
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Add nox sessions for i18n workflow
+  ([`706403b`](https://github.com/MicaelJarniac/ogdrb/commit/706403ba3ed17559348f71ddf1e81130b6c4c4ec))
+
+Add four nox sessions for managing translations: - i18n_extract: extract strings to POT template -
+  i18n_init: initialize new language catalog - i18n_update: update existing catalogs from POT -
+  i18n_compile: compile PO to binary MO files
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Fill POT metadata in i18n_extract nox session
+  ([`5d23b6e`](https://github.com/MicaelJarniac/ogdrb/commit/5d23b6e007de3dda4888d90ae4d01fbdac2849e1))
+
+Pass --version (read dynamically from pyproject.toml), --copyright-holder, and --msgid-bugs-address
+  to pybabel extract so the POT header is fully populated.
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+### Chores
+
+- Exclude .po/.pot from end-of-file and trailing-whitespace hooks
+  ([`240c343`](https://github.com/MicaelJarniac/ogdrb/commit/240c343d471f3de9a9b381ecc95ee4872189a8b1))
+
+Gettext catalog files have their own formatting conventions that conflict with these pre-commit
+  hooks.
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- I18n WIP
+  ([`a479b51`](https://github.com/MicaelJarniac/ogdrb/commit/a479b516106015597d51fe1159b01605782f6242))
+
+- Regenerate locale files with updated translations
+  ([`766508a`](https://github.com/MicaelJarniac/ogdrb/commit/766508a58c213948a4d398c015db865fda0ecf5f))
+
+- Regenerate POT template (no URLs, split help text, individual table headers) - Rewrite pt_BR PO
+  with all new translations, remove fuzzy/obsolete entries - Recompile MO binary
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Remove unused babel extract_messages config
+  ([`bea8a71`](https://github.com/MicaelJarniac/ogdrb/commit/bea8a71264f85cd7cdf12a6dc4ca66440e2025f4))
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Translations sync
+  ([`356bca0`](https://github.com/MicaelJarniac/ogdrb/commit/356bca0c085cf8d8d560a8a0a101c96884502a7c))
+
+- Update all dependencies and remove circle-resize monkeypatch
+  ([#11](https://github.com/MicaelJarniac/ogdrb/pull/11),
+  [`5ce08ef`](https://github.com/MicaelJarniac/ogdrb/commit/5ce08ef44277a328b85c150b20a706085cb822ce))
+
+Bump all dependency minimum versions to match currently installed packages (including NiceGUI 3.8.0,
+  sqlmodel 0.0.37, pycountry 26.2.16, us 3.2.0, and many others). Also removes the
+  L.Edit.Circle._resize monkeypatch that worked around a Leaflet Draw minification bug, which is
+  fixed in NiceGUI 3.8.0.
+
+Co-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Update translations
+  ([`32e6440`](https://github.com/MicaelJarniac/ogdrb/commit/32e6440b5db8d09a804540c9870078d8b531d478))
+
+### Features
+
+- Add i18n support with gettext for all UI strings
+  ([`95d0e21`](https://github.com/MicaelJarniac/ogdrb/commit/95d0e21e68ae7e20341457ab74ee7a201692c565))
+
+- Add pt_BR locale catalog
+  ([`e4151dc`](https://github.com/MicaelJarniac/ogdrb/commit/e4151dc95f8f4236f74dfb5edc81752d3df25395))
+
+- Extract 35 translatable strings to ogdrb.pot template - Initialize and fully translate pt_BR
+  catalog (ogdrb.po) - Compile binary message catalog (ogdrb.mo)
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Auto-detect supported locales from directory
+  ([`c7ad8fc`](https://github.com/MicaelJarniac/ogdrb/commit/c7ad8fc27cecff9919a9ff64cb3dda7e6f861589))
+
+Scan LOCALE_DIR for subdirectories containing compiled .mo files and build Language objects
+  dynamically using Babel's Locale.parse() for display names and Unicode regional indicators for
+  flag emoji.
+
+Adding a new language now requires only a locale directory (pybabel init + translate + compile) — no
+  Python code changes needed.
+
+Also provides an EMOJI_OVERRIDES dict for edge cases (e.g. locales without a country code).
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Implement per-user gettext translations
+  ([`5c62361`](https://github.com/MicaelJarniac/ogdrb/commit/5c6236109d102cd41377c35a59b61073861fa79a))
+
+- Replace module-level singleton t() with per-user function that reads from app.storage.user,
+  enabling per-session language switching - Add PT_BR language with cached GNUTranslations lookup -
+  Fix browser_language variable shadowing bug (inner loop vs set comprehension) - Fix selector label
+  collision: use language_name instead of display_name to avoid 'English (United States)'
+  conflicting with country selector - Seed user storage before bind_value to prevent spurious reload
+  on load
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Localize country names in selector by user language
+  ([`7d2d3b6`](https://github.com/MicaelJarniac/ogdrb/commit/7d2d3b6764cc1b1752bca2051c74871ebd6e3b4f))
+
+Add territory_name() helper that returns localized country names via Babel's Locale.territories. The
+  country selector now displays names in the user's chosen language (e.g. 'Estados Unidos' for
+  pt-BR) while keeping alpha-2 codes as values for the backend API.
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Parse Accept-Language header with RFC 7231 quality values
+  ([`2aa601f`](https://github.com/MicaelJarniac/ogdrb/commit/2aa601f4003179d7b525429e9484dcb561f01fcb))
+
+Replace naive comma+semicolon split with _parse_accept_languages() that extracts q-values and sorts
+  by priority, so browser_language matches the user's highest-quality supported locale instead of
+  the first one in header order.
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+- Quasar lang
+  ([`13b8b13`](https://github.com/MicaelJarniac/ogdrb/commit/13b8b132f3e51fb6a83f48ca3148a07938488f36))
+
+### Refactoring
+
+- Move ExternalURLs to module scope and split help text
+  ([`ccfc81b`](https://github.com/MicaelJarniac/ogdrb/commit/ccfc81baa11615ec033d3654e88177d802719045))
+
+- Move ExternalURLs enum out of index() to avoid wrapping URLs in t() - Split monolithic help text
+  into 5 translatable sections - Fix leading space in INCOMPATIBLE badge - Fix 'New Zone' button
+  text casing in test
+
+Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-opencode)
+
+Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>
+
+
 ## v0.5.0 (2026-02-25)
 
 ### Bug Fixes
