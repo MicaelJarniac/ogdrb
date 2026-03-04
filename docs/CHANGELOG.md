@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.1 (2026-03-04)
+
+### Bug Fixes
+
+- Better exception handling
+  ([`803b4f1`](https://github.com/MicaelJarniac/ogdrb/commit/803b4f12dc5bbca859b344644391bc5cef7bdbe8))
+
+
 ## v0.6.0 (2026-03-03)
 
 ### Bug Fixes
