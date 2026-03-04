@@ -30,7 +30,7 @@ dependencies = [
     "pycountry>=26.2.16",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
-    "repeaterbook>=0.4.0",
+    "repeaterbook>=0.4.1",
     "sqlmodel>=0.0.37",
     "us>=3.2.0",
 ]

@@ -660,7 +660,7 @@ async def index() -> None:  # noqa: C901, PLR0915
             }
 
             await sync_repeater_markers(all_repeaters, compatible_ids)
-        except ValueError as e:
+        except (ValueError, RuntimeError) as e:
             ui.notify(t("Error: {}").format(e), type="negative")
             return
         finally:

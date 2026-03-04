@@ -240,12 +240,23 @@ async def prepare_local_repeaters(
     results: dict[int, list[Repeater]] = {}
 
     async def _download_one(query: ExportQuery, idx: int) -> None:
-        results[idx] = await _RB_API.download(query=query)
+        try:
+            results[idx] = await _RB_API.download(query=query)
+        except Exception:
+            logger.exception("Error downloading repeaters for query {}", idx)
+            raise
 
     queries_list = build_export_queries(export, us_state_ids=us_state_ids)
-    async with anyio.create_task_group() as tg:
-        for idx, query in enumerate(queries_list):
-            tg.start_soon(_download_one, query, idx)
+    try:
+        async with anyio.create_task_group() as tg:
+            for idx, query in enumerate(queries_list):
+                tg.start_soon(_download_one, query, idx)
+    except ExceptionGroup as eg:
+        logger.error("One or more errors occurred during repeater downloads:")
+        for exc in eg.exceptions:
+            logger.error(" - {}", exc)
+        msg = "Failed to download repeaters"
+        raise RuntimeError(msg) from eg
 
     unique_repeaters = {
         RepeaterId(
