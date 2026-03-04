@@ -3,11 +3,12 @@
 # This file is distributed under the same license as the ogdrb project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
+#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: ogdrb 0.5.0\n"
+"Project-Id-Version: ogdrb 0.6.0\n"
 "Report-Msgid-Bugs-To: https://github.com/MicaelJarniac/ogdrb/issues\n"
-"POT-Creation-Date: 2026-03-02 15:27-0300\n"
+"POT-Creation-Date: 2026-03-03 21:50-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/ogdrb/i18n.py:188
+#: src/ogdrb/i18n.py:216
 msgid "Language changed. Reloading."
 msgstr ""
 
-#: src/ogdrb/i18n.py:207
+#: src/ogdrb/i18n.py:233
 msgid "Language"
 msgstr ""
 
