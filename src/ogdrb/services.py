@@ -11,6 +11,7 @@ __all__: tuple[str, ...] = (
     "get_compatible_repeaters",
     "get_repeaters",
     "prepare_local_repeaters",
+    "prepare_local_repeaters_from_csv",
 )
 
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -21,14 +22,17 @@ from anyio import Path
 from attrs import evolve, field, frozen
 from loguru import logger
 from repeaterbook import Repeater, RepeaterBook, queries
+from repeaterbook.csv_export import csv_to_models
 from repeaterbook.models import ExportQuery, Status, Use
 from repeaterbook.queries import Bands
 from repeaterbook.services import RepeaterBookAPI
 from sqlmodel import col, or_
 
+from ogdrb import __version__
 from ogdrb.converters import BANDWIDTH, repeater_to_channels
 
 if TYPE_CHECKING:
+    import io
     from typing import Self
 
     from opengd77.models import AnalogChannel, DigitalChannel
@@ -44,7 +48,8 @@ US_COUNTRY_NAME = _US_COUNTRY_OBJ.name  # "United States" - for database queries
 # Module-level service instances (reused across calls)
 _RB_API = RepeaterBookAPI(
     app_name="ogdrb",
-    app_email="micael@jarniac.dev",
+    app_version=__version__,
+    app_contact="micael@jarniac.dev",
     working_dir=Path(),
 )
 _RB = RepeaterBook(working_dir=Path())
@@ -171,9 +176,9 @@ def _country_state_filters(
 
 
 def get_compatible_repeaters(
-    export: ExportQuery,
+    export: ExportQuery | None = None,
     *,
-    us_state_ids: frozenset[str] = frozenset(),
+    us_state_ids: frozenset[str] | None = None,
 ) -> list[Repeater]:
     """Query compatible repeaters from local database.
 
@@ -182,11 +187,14 @@ def get_compatible_repeaters(
 
     NOTE: Database must be pre-populated via prepare_local_repeaters() first.
     """
-    country_names = {country.name for country in export.countries}
     where: list[BinaryExpression[bool] | ColumnElement[bool]] = [
         *_compatibility_filters(),
-        *_country_state_filters(country_names, us_state_ids),
     ]
+    if export is not None:
+        country_names = {country.name for country in export.countries}
+        if us_state_ids is None:
+            us_state_ids = frozenset()
+        where.extend(_country_state_filters(country_names, us_state_ids))
 
     return list(_RB.query(*where))
 
@@ -274,3 +282,12 @@ async def prepare_local_repeaters(
     where = _country_state_filters(country_names, us_state_ids)
 
     return list(_RB.query(*where))
+
+
+async def prepare_local_repeaters_from_csv(
+    csv_content: io.TextIOBase,
+) -> list[Repeater]:
+    """Populate local database from CSV content."""
+    repeaters = csv_to_models(csv_content)
+    _RB.populate(repeaters)
+    return list(_RB.query())
