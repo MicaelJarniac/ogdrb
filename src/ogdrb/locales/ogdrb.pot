@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ogdrb 0.6.1\n"
 "Report-Msgid-Bugs-To: https://github.com/MicaelJarniac/ogdrb/issues\n"
-"POT-Creation-Date: 2026-04-07 21:30-0300\n"
+"POT-Creation-Date: 2026-04-08 09:29-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,7 +25,7 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
-#: src/ogdrb/main.py:185 src/ogdrb/main.py:835
+#: src/ogdrb/main.py:185 src/ogdrb/main.py:833
 msgid "New Zone"
 msgstr ""
 
@@ -45,7 +45,7 @@ msgstr ""
 msgid "⚠️ INCOMPATIBLE"
 msgstr ""
 
-#: src/ogdrb/main.py:676 src/ogdrb/main.py:705 src/ogdrb/main.py:772
+#: src/ogdrb/main.py:676 src/ogdrb/main.py:705 src/ogdrb/main.py:770
 #, python-brace-format
 msgid "Error: {}"
 msgstr ""
@@ -59,52 +59,52 @@ msgstr ""
 msgid "Cleared repeaters from map."
 msgstr ""
 
-#: src/ogdrb/main.py:729
+#: src/ogdrb/main.py:727
 msgid "Please add at least one zone."
 msgstr ""
 
-#: src/ogdrb/main.py:732
+#: src/ogdrb/main.py:730
 msgid "Duplicate zone names found."
 msgstr ""
 
-#: src/ogdrb/main.py:766
+#: src/ogdrb/main.py:764
 msgid "No repeaters found. Please load repeaters first."
 msgstr ""
 
-#: src/ogdrb/main.py:795
+#: src/ogdrb/main.py:793
 msgid "Select countries"
 msgstr ""
 
-#: src/ogdrb/main.py:806
+#: src/ogdrb/main.py:804
 msgid "Select US states"
 msgstr ""
 
-#: src/ogdrb/main.py:826
+#: src/ogdrb/main.py:824
 msgid "Upload CSVs"
 msgstr ""
 
-#: src/ogdrb/main.py:828
+#: src/ogdrb/main.py:826
 msgid "Load Repeaters"
 msgstr ""
 
-#: src/ogdrb/main.py:831
+#: src/ogdrb/main.py:829
 msgid "Clear Repeaters"
 msgstr ""
 
-#: src/ogdrb/main.py:834
+#: src/ogdrb/main.py:832
 msgid "Export"
 msgstr ""
 
-#: src/ogdrb/main.py:838
+#: src/ogdrb/main.py:836
 msgid "Delete selected zones"
 msgstr ""
 
-#: src/ogdrb/main.py:848
+#: src/ogdrb/main.py:846
 #, python-brace-format
 msgid "<a href='{url_github}' target='_blank'>OGDRB by MicaelJarniac</a>"
 msgstr ""
 
-#: src/ogdrb/main.py:855
+#: src/ogdrb/main.py:853
 #, python-brace-format
 msgid ""
 "This app is not affiliated with <a href='{url_opengd77}' "
@@ -112,7 +112,7 @@ msgid ""
 "target='_blank'>RepeaterBook</a>."
 msgstr ""
 
-#: src/ogdrb/main.py:867
+#: src/ogdrb/main.py:865
 #, python-brace-format
 msgid ""
 "All repeater data is from <a href='{url_repeaterbook}' "
@@ -120,15 +120,15 @@ msgid ""
 "href='{url_repeaterbook_api}' target='_blank'>public API</a>."
 msgstr ""
 
-#: src/ogdrb/main.py:881
+#: src/ogdrb/main.py:879
 msgid "Upload repeater CSVs"
 msgstr ""
 
-#: src/ogdrb/main.py:885 src/ogdrb/main.py:959
+#: src/ogdrb/main.py:883 src/ogdrb/main.py:957
 msgid "Close"
 msgstr ""
 
-#: src/ogdrb/main.py:892
+#: src/ogdrb/main.py:890
 #, python-brace-format
 msgid ""
 "# OGDRB\n"
@@ -140,7 +140,7 @@ msgid ""
 "editor."
 msgstr ""
 
-#: src/ogdrb/main.py:904
+#: src/ogdrb/main.py:902
 msgid ""
 "## How to use\n"
 "1. Select the countries you want to include in your codeplug. If you "
@@ -153,7 +153,7 @@ msgid ""
 "6. Upload the codeplug to your OpenGD77 radio."
 msgstr ""
 
-#: src/ogdrb/main.py:919
+#: src/ogdrb/main.py:917
 msgid ""
 "## Notes\n"
 "- The circles you draw on the map define the zones for your codeplug.\n"
@@ -166,41 +166,41 @@ msgid ""
 "clicking on them."
 msgstr ""
 
-#: src/ogdrb/main.py:933
+#: src/ogdrb/main.py:931
 msgid ""
 "## Limits\n"
 "Going beyond these limits may truncate the data, or result in errors."
 msgstr ""
 
-#: src/ogdrb/main.py:938
+#: src/ogdrb/main.py:936
 msgid "Field"
 msgstr ""
 
-#: src/ogdrb/main.py:938
+#: src/ogdrb/main.py:936
 msgid "Limit"
 msgstr ""
 
-#: src/ogdrb/main.py:940
+#: src/ogdrb/main.py:938
 msgid "Zones"
 msgstr ""
 
-#: src/ogdrb/main.py:941
+#: src/ogdrb/main.py:939
 msgid "Channels"
 msgstr ""
 
-#: src/ogdrb/main.py:942
+#: src/ogdrb/main.py:940
 msgid "Channels Per Zone"
 msgstr ""
 
-#: src/ogdrb/main.py:943
+#: src/ogdrb/main.py:941
 msgid "Zone Name Length"
 msgstr ""
 
-#: src/ogdrb/main.py:944
+#: src/ogdrb/main.py:942
 msgid "Channel Name Length"
 msgstr ""
 
-#: src/ogdrb/main.py:946
+#: src/ogdrb/main.py:944
 #, python-brace-format
 msgid ""
 "## RepeaterBook\n"
@@ -210,23 +210,23 @@ msgid ""
 "work."
 msgstr ""
 
-#: src/ogdrb/main.py:995
+#: src/ogdrb/main.py:993
 msgid "Name"
 msgstr ""
 
-#: src/ogdrb/main.py:996
+#: src/ogdrb/main.py:994
 msgid "Latitude"
 msgstr ""
 
-#: src/ogdrb/main.py:997
+#: src/ogdrb/main.py:995
 msgid "Longitude"
 msgstr ""
 
-#: src/ogdrb/main.py:998
+#: src/ogdrb/main.py:996
 msgid "Radius (km)"
 msgstr ""
 
-#: src/ogdrb/main.py:999
+#: src/ogdrb/main.py:997
 msgid "ID"
 msgstr ""
 
