@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__: tuple[str, ...] = ()
 
+import io
 import json
 import os
 from datetime import UTC, datetime
@@ -15,7 +16,7 @@ import pycountry
 import us  # type: ignore[import-untyped]
 from haversine import Unit  # type: ignore[import-untyped]
 from loguru import logger
-from nicegui import ui
+from nicegui import events, ui
 from opengd77.constants import Max
 from opengd77.converters import codeplug_to_csvs, csvs_to_zip
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,9 +27,13 @@ from ogdrb.i18n import language_manager, t, territory_name
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
+    cleanup_repeater_db,
+    clear_local_repeaters,
+    create_repeater_db,
     get_compatible_repeaters,
     get_repeaters,
     prepare_local_repeaters,
+    prepare_local_repeaters_from_csv,
 )
 
 if TYPE_CHECKING:
@@ -531,6 +536,9 @@ class ZoneManager:
 async def index() -> None:  # noqa: C901, PLR0915
     language_manager.quasar_html()
 
+    rb = create_repeater_db()
+    ui.context.client.on_disconnect(lambda: cleanup_repeater_db(rb))
+
     repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
@@ -635,22 +643,26 @@ async def index() -> None:  # noqa: C901, PLR0915
             incompatible_count,
         )
 
-    async def populate_repeaters() -> None:
+    async def populate_repeaters_from_api() -> None:
         filters = validate_filters()
         if not filters:
             return
         _, selected_us_states, countries = filters
         loading.set_visibility(True)
         try:
+            export_query = ExportQuery(countries=frozenset(countries))
+
             # Query 1: ALL repeaters (for map display)
             all_repeaters = await prepare_local_repeaters(
-                export=ExportQuery(countries=frozenset(countries)),
+                rb,
+                export=export_query,
                 us_state_ids=selected_us_states,
             )
 
             # Query 2: COMPATIBLE repeaters only (for determining colors)
             compatible_repeaters = get_compatible_repeaters(
-                export=ExportQuery(countries=frozenset(countries)),
+                rb,
+                export=export_query,
                 us_state_ids=selected_us_states,
             )
 
@@ -672,10 +684,43 @@ async def index() -> None:  # noqa: C901, PLR0915
             type="positive",
         )
 
-    async def export() -> None:
-        filters = validate_filters()
-        if not filters:
+    async def populate_repeaters_from_csv(event: events.UploadEventArguments) -> None:
+        loading.set_visibility(True)
+        try:
+            csv_content = io.StringIO(await event.file.text())
+
+            # Query 1: ALL repeaters (for map display)
+            all_repeaters = await prepare_local_repeaters_from_csv(rb, csv_content)
+
+            # Query 2: COMPATIBLE repeaters only (for determining colors)
+            compatible_repeaters = get_compatible_repeaters(rb)
+
+            # Build set of compatible IDs for O(1) lookup
+            compatible_ids = {
+                (r.country, r.state_id, r.repeater_id) for r in compatible_repeaters
+            }
+
+            await sync_repeater_markers(all_repeaters, compatible_ids)
+        except (ValueError, RuntimeError) as e:
+            ui.notify(t("Error: {}").format(e), type="negative")
             return
+        finally:
+            loading.set_visibility(False)
+        ui.notify(
+            t("Loaded {} repeaters ({} compatible).").format(
+                len(all_repeaters), len(compatible_ids)
+            ),
+            type="positive",
+        )
+
+    async def clear_repeaters() -> None:
+        await clear_local_repeaters(rb)
+        if repeater_cluster is not None:
+            m.run_layer_method(repeater_cluster.id, "clearLayers")  # type: ignore[no-untyped-call]
+        ui.notify(t("Cleared repeaters from map."), type="positive")
+
+    async def export() -> None:
+        filters = selected_filters()
         _, selected_us_states, countries = filters
         zone_rows = zm.rows
         if not zone_rows:
@@ -699,6 +744,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         try:
             country_names = frozenset(c.name for c in countries)
             repeaters_by_zone = get_repeaters(
+                rb,
                 zones={
                     row["name"]: Radius(
                         origin=LatLon(lat=row["lat"], lon=row["lng"]),
@@ -753,6 +799,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                         for country in pycountry.countries
                     },
                 )
+                select_country.set_visibility(False)  # Because API access is disabled
                 select_us_state = ui.select(
                     label=t("Select US states"),
                     with_input=True,
@@ -774,8 +821,13 @@ async def index() -> None:  # noqa: C901, PLR0915
             select_country.on_value_change(lambda _: sync_us_states_visibility())
 
             with ui.row():
-                ui.button(t("Load Repeaters"), on_click=populate_repeaters).props(
-                    "icon=cloud_download"
+                upload_button = ui.button(t("Upload CSVs")).props("icon=upload")
+                load_repeaters = ui.button(
+                    t("Load Repeaters"), on_click=populate_repeaters_from_api
+                ).props("icon=cloud_download")
+                load_repeaters.set_visibility(False)  # Because API access is disabled
+                ui.button(t("Clear Repeaters"), on_click=clear_repeaters).props(
+                    "icon=delete"
                 )
                 ui.button(t("Export"), on_click=export).props("icon=save")
                 new_zone = ui.button(t("New Zone")).props(
@@ -822,6 +874,16 @@ async def index() -> None:  # noqa: C901, PLR0915
             sanitize=False,
         )
 
+    with ui.dialog() as dialog_upload, ui.card():
+        ui.upload(
+            label=t("Upload repeater CSVs"),
+            multiple=True,
+            on_upload=populate_repeaters_from_csv,
+        )
+        ui.button(t("Close"), on_click=dialog_upload.close)
+
+    upload_button.on_click(dialog_upload.open)
+
     with ui.dialog() as dialog_help, ui.card():
         help_sections = [
             t(
@@ -841,7 +903,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                 "1. Select the countries you want to include in your "
                 "codeplug. If you select United States, also choose one "
                 "or more states.\n"
-                '2. Click "Load Repeaters" to cache repeaters and '
+                '2. Click "Upload CSVs" to upload repeater data and '
                 "display markers.\n"
                 "3. Draw circles on the map to define the zones you "
                 "want to include (or manually add to the list below).\n"

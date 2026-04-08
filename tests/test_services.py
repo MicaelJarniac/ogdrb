@@ -14,7 +14,11 @@ from repeaterbook import Repeater
 from repeaterbook.models import ExportQuery
 from repeaterbook.utils import LatLon, Radius
 
-from ogdrb.services import build_export_queries, get_repeaters, prepare_local_repeaters
+from ogdrb.services import (
+    build_export_queries,
+    get_repeaters,
+    prepare_local_repeaters,
+)
 
 
 def test_build_export_queries_single_non_us_country() -> None:
@@ -122,10 +126,8 @@ async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
         use_membership="Open",
     )
 
-    with (
-        patch("ogdrb.services._RB_API") as mock_api,
-        patch("ogdrb.services._RB") as mock_rb,
-    ):
+    mock_rb = MagicMock()
+    with patch("ogdrb.services._RB_API") as mock_api:
         # Mock download to return repeaters with duplicates
         mock_api.download = AsyncMock(return_value=[repeater1, repeater2, repeater3])
 
@@ -133,7 +135,7 @@ async def test_prepare_local_repeaters_downloads_and_deduplicates() -> None:
         mock_rb.populate = MagicMock()
         mock_rb.query = MagicMock(return_value=[repeater1, repeater3])
 
-        result = await prepare_local_repeaters(query, us_state_ids=frozenset())
+        result = await prepare_local_repeaters(mock_rb, query, us_state_ids=frozenset())
 
         # Verify download was called
         assert mock_api.download.called
@@ -179,16 +181,15 @@ def test_get_repeaters_queries_by_zone() -> None:
         fm_bandwidth=Decimal("25.0"),
     )
 
-    with patch("ogdrb.services._RB") as mock_rb:
-        # Mock query to return test repeater
-        mock_rb.query = MagicMock(return_value=[repeater1])
+    mock_rb = MagicMock()
+    mock_rb.query = MagicMock(return_value=[repeater1])
 
-        result = get_repeaters(zones)
+    result = get_repeaters(mock_rb, zones)
 
-        # Verify query was called (but NOT download)
-        assert mock_rb.query.called
+    # Verify query was called (but NOT download)
+    assert mock_rb.query.called
 
-        # Verify result structure
-        assert "Test Zone" in result
-        assert len(result["Test Zone"]) == 1
-        # The actual filtering is done by queries.filter_radius which we're not mocking
+    # Verify result structure
+    assert "Test Zone" in result
+    assert len(result["Test Zone"]) == 1
+    # The actual filtering is done by queries.filter_radius which we're not mocking
