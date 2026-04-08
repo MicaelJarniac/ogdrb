@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ogdrb 0.5.0\n"
 "Report-Msgid-Bugs-To: micael@jarniac.dev\n"
-"POT-Creation-Date: 2026-04-08 09:37-0300\n"
+"POT-Creation-Date: 2026-04-08 09:54-0300\n"
 "PO-Revision-Date: 2026-03-02 11:22-0300\n"
 "Last-Translator: Micael Jarniac <micael@jarniac.dev>\n"
 "Language: pt_BR\n"
@@ -133,7 +133,7 @@ msgstr ""
 msgid "Upload repeater CSVs"
 msgstr "Enviar CSVs de repetidoras"
 
-#: src/ogdrb/main.py:883 src/ogdrb/main.py:957
+#: src/ogdrb/main.py:883 src/ogdrb/main.py:959
 msgid "Close"
 msgstr "Fechar"
 
@@ -157,11 +157,13 @@ msgstr ""
 " do OpenGD77."
 
 #: src/ogdrb/main.py:902
+#, python-brace-format
 msgid ""
 "## How to use\n"
-"1. Select the countries you want to include in your codeplug. If you "
-"select United States, also choose one or more states.\n"
-"2. Click \"Upload CSVs\" to upload repeater data and display markers.\n"
+"1. Go to [RepeaterBook]({url_repeaterbook}), find the repeaters you want,"
+" and export them as a Custom CSV with all fields enabled.\n"
+"2. Click \"Upload CSVs\" to upload the exported CSV and display markers "
+"on the map.\n"
 "3. Draw circles on the map to define the zones you want to include (or "
 "manually add to the list below).\n"
 "4. Click the \"Export\" button to download the codeplug as a ZIP file.\n"
@@ -169,10 +171,11 @@ msgid ""
 "6. Upload the codeplug to your OpenGD77 radio."
 msgstr ""
 "## Como usar\n"
-"1. Selecione os países que deseja incluir no seu codeplug. Se selecionar "
-"Estados Unidos, escolha também um ou mais estados.\n"
-"2. Clique em \"Enviar CSVs\" para enviar dados de repetidoras e exibir "
-"marcadores.\n"
+"1. Acesse o [RepeaterBook]({url_repeaterbook}), encontre as repetidoras "
+"desejadas e exporte-as como CSV Personalizado com todos os campos "
+"habilitados.\n"
+"2. Clique em \"Enviar CSVs\" para enviar o CSV exportado e exibir "
+"marcadores no mapa.\n"
 "3. Desenhe círculos no mapa para definir as zonas que deseja incluir (ou "
 "adicione manualmente na lista abaixo).\n"
 "4. Clique no botão \"Exportar\" para baixar o codeplug como um arquivo "
@@ -180,7 +183,7 @@ msgstr ""
 "5. Importe a pasta extraída no editor de codeplug do OpenGD77.\n"
 "6. Envie o codeplug para o seu rádio OpenGD77."
 
-#: src/ogdrb/main.py:917
+#: src/ogdrb/main.py:919
 msgid ""
 "## Notes\n"
 "- The circles you draw on the map define the zones for your codeplug.\n"
@@ -202,7 +205,7 @@ msgstr ""
 "- Você pode selecionar múltiplas zonas segurando a tecla Ctrl enquanto "
 "clica nelas."
 
-#: src/ogdrb/main.py:931
+#: src/ogdrb/main.py:933
 msgid ""
 "## Limits\n"
 "Going beyond these limits may truncate the data, or result in errors."
@@ -210,35 +213,35 @@ msgstr ""
 "## Limites\n"
 "Ultrapassar estes limites pode truncar os dados ou resultar em erros."
 
-#: src/ogdrb/main.py:936
+#: src/ogdrb/main.py:938
 msgid "Field"
 msgstr "Campo"
 
-#: src/ogdrb/main.py:936
+#: src/ogdrb/main.py:938
 msgid "Limit"
 msgstr "Limite"
 
-#: src/ogdrb/main.py:938
+#: src/ogdrb/main.py:940
 msgid "Zones"
 msgstr "Zonas"
 
-#: src/ogdrb/main.py:939
+#: src/ogdrb/main.py:941
 msgid "Channels"
 msgstr "Canais"
 
-#: src/ogdrb/main.py:940
+#: src/ogdrb/main.py:942
 msgid "Channels Per Zone"
 msgstr "Canais Por Zona"
 
-#: src/ogdrb/main.py:941
+#: src/ogdrb/main.py:943
 msgid "Zone Name Length"
 msgstr "Tamanho Nome Zona"
 
-#: src/ogdrb/main.py:942
+#: src/ogdrb/main.py:944
 msgid "Channel Name Length"
 msgstr "Tamanho Nome Canal"
 
-#: src/ogdrb/main.py:944
+#: src/ogdrb/main.py:946
 #, python-brace-format
 msgid ""
 "## RepeaterBook\n"
@@ -253,23 +256,23 @@ msgstr ""
 "[assinar]({url_plus}) o [RepeaterBook]({url_rb}) para apoiar o trabalho "
 "deles."
 
-#: src/ogdrb/main.py:993
+#: src/ogdrb/main.py:995
 msgid "Name"
 msgstr "Nome"
 
-#: src/ogdrb/main.py:994
+#: src/ogdrb/main.py:996
 msgid "Latitude"
 msgstr "Latitude"
 
-#: src/ogdrb/main.py:995
+#: src/ogdrb/main.py:997
 msgid "Longitude"
 msgstr "Longitude"
 
-#: src/ogdrb/main.py:996
+#: src/ogdrb/main.py:998
 msgid "Radius (km)"
 msgstr "Raio (km)"
 
-#: src/ogdrb/main.py:997
+#: src/ogdrb/main.py:999
 msgid "ID"
 msgstr "ID"
 

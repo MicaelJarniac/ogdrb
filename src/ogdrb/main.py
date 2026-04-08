@@ -900,11 +900,11 @@ async def index() -> None:  # noqa: C901, PLR0915
             ),
             t(
                 "## How to use\n"
-                "1. Select the countries you want to include in your "
-                "codeplug. If you select United States, also choose one "
-                "or more states.\n"
-                '2. Click "Upload CSVs" to upload repeater data and '
-                "display markers.\n"
+                "1. Go to [RepeaterBook]({url_repeaterbook}), find the "
+                "repeaters you want, and export them as a Custom CSV "
+                "with all fields enabled.\n"
+                '2. Click "Upload CSVs" to upload the exported CSV and '
+                "display markers on the map.\n"
                 "3. Draw circles on the map to define the zones you "
                 "want to include (or manually add to the list below).\n"
                 '4. Click the "Export" button to download the codeplug '
@@ -912,6 +912,8 @@ async def index() -> None:  # noqa: C901, PLR0915
                 "5. Import the extracted folder into the OpenGD77 "
                 "codeplug editor.\n"
                 "6. Upload the codeplug to your OpenGD77 radio."
+            ).format(
+                url_repeaterbook=ExternalURLs.REPEATERBOOK,
             ),
             t(
                 "## Notes\n"
