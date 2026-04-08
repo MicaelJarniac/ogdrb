@@ -1,6 +1,60 @@
 # CHANGELOG
 
 
+## v0.7.0 (2026-04-08)
+
+### Bug Fixes
+
+- Allow export without filters
+  ([`dd431a2`](https://github.com/MicaelJarniac/ogdrb/commit/dd431a2f52930279d450baaac78f6f9d896db523))
+
+- Isolate repeater database per user session
+  ([`834b3be`](https://github.com/MicaelJarniac/ogdrb/commit/834b3bebd973dbea6bdfaa2c835ef9badd6ef44b))
+
+The module-level RepeaterBook singleton was shared across all concurrent users on Fly.io, causing
+  data leakage between sessions. Each user now gets an independent database in a temp directory,
+  cleaned up on client disconnect.
+
+### Build System
+
+- **deps**: Bump tornado from 6.5.4 to 6.5.5
+  ([`214f970`](https://github.com/MicaelJarniac/ogdrb/commit/214f970069f661b2df8f78eeb2709f79f363c35d))
+
+Bumps [tornado](https://github.com/tornadoweb/tornado) from 6.5.4 to 6.5.5. -
+  [Changelog](https://github.com/tornadoweb/tornado/blob/master/docs/releases.rst) -
+  [Commits](https://github.com/tornadoweb/tornado/compare/v6.5.4...v6.5.5)
+
+--- updated-dependencies: - dependency-name: tornado dependency-version: 6.5.5
+
+dependency-type: indirect ...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
+### Chores
+
+- Messages sync
+  ([`63d2cd7`](https://github.com/MicaelJarniac/ogdrb/commit/63d2cd7588df9992c412912ed6d0e9ca73ff43a7))
+
+- Texts
+  ([`47a3eb3`](https://github.com/MicaelJarniac/ogdrb/commit/47a3eb3cb562b88a336cf6a4461d2cf6ac0f03b2))
+
+- Update translations
+  ([`e4263f9`](https://github.com/MicaelJarniac/ogdrb/commit/e4263f99f3ee55e2ea70e2ec35c206a7516e2c4b))
+
+### Features
+
+- Clear
+  ([`0e8725d`](https://github.com/MicaelJarniac/ogdrb/commit/0e8725dea6a34c8d2c76f2c2a21f5b638f8d6970))
+
+- Upload CSVs
+  ([`718749a`](https://github.com/MicaelJarniac/ogdrb/commit/718749a5c551626e21b1edce90e635a869ec4022))
+
+### Testing
+
+- Fix tests
+  ([`0cfeffe`](https://github.com/MicaelJarniac/ogdrb/commit/0cfeffe2066df753c6b8f932c717105a2e7d1ec1))
+
+
 ## v0.6.1 (2026-03-04)
 
 ### Bug Fixes
