@@ -8,6 +8,7 @@ __all__: tuple[str, ...] = (
     "RepeaterId",
     "UniRepeater",
     "build_export_queries",
+    "clear_local_repeaters",
     "get_compatible_repeaters",
     "get_repeaters",
     "prepare_local_repeaters",
@@ -291,3 +292,8 @@ async def prepare_local_repeaters_from_csv(
     repeaters = csv_to_models(csv_content)
     _RB.populate(repeaters)
     return list(_RB.query())
+
+
+async def clear_local_repeaters() -> None:
+    """Clear all repeaters from local database."""
+    _RB.truncate()

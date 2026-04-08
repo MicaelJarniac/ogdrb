@@ -27,6 +27,7 @@ from ogdrb.i18n import language_manager, t, territory_name
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
+    clear_local_repeaters,
     get_compatible_repeaters,
     get_repeaters,
     prepare_local_repeaters,
@@ -705,6 +706,12 @@ async def index() -> None:  # noqa: C901, PLR0915
             type="positive",
         )
 
+    async def clear_repeaters() -> None:
+        await clear_local_repeaters()
+        if repeater_cluster is not None:
+            m.run_layer_method(repeater_cluster.id, "clearLayers")  # type: ignore[no-untyped-call]
+        ui.notify(t("Cleared repeaters from map."), type="positive")
+
     async def export() -> None:
         filters = validate_filters()
         if not filters:
@@ -813,6 +820,9 @@ async def index() -> None:  # noqa: C901, PLR0915
                     t("Load Repeaters"), on_click=populate_repeaters_from_api
                 ).props("icon=cloud_download")
                 load_repeaters.set_visibility(False)  # Because API access is disabled
+                ui.button(t("Clear Repeaters"), on_click=clear_repeaters).props(
+                    "icon=delete"
+                )
                 ui.button(t("Export"), on_click=export).props("icon=save")
                 new_zone = ui.button(t("New Zone")).props(
                     "icon=add color=green",
