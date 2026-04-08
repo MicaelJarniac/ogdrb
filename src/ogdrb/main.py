@@ -720,9 +720,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         ui.notify(t("Cleared repeaters from map."), type="positive")
 
     async def export() -> None:
-        filters = validate_filters()
-        if not filters:
-            return
+        filters = selected_filters()
         _, selected_us_states, countries = filters
         zone_rows = zm.rows
         if not zone_rows:
