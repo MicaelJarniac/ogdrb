@@ -22,6 +22,8 @@ SELECT_US_STATES_LABEL = "Select US states"
 UNITED_STATES_LABEL = "United States"
 CANADA_LABEL = "Canada"
 LOAD_REPEATERS_LABEL = "Load Repeaters"
+UPLOAD_CSVS_LABEL = "Upload CSVs"
+CLEAR_REPEATERS_LABEL = "Clear Repeaters"
 EXPORT_LABEL = "Export"
 
 
@@ -36,14 +38,16 @@ async def test_initial_page_elements(user: User) -> None:
     """Test that the page loads with expected elements visible."""
     await user.open("/")
     await user.should_see("OGDRB")
-    await user.should_see(SELECT_COUNTRIES_LABEL)
-    await user.should_not_see(SELECT_US_STATES_LABEL)
-    await user.should_see(LOAD_REPEATERS_LABEL)
+    await user.should_see(UPLOAD_CSVS_LABEL)
+    await user.should_see(CLEAR_REPEATERS_LABEL)
     await user.should_see(EXPORT_LABEL)
     await user.should_see("New Zone")
     await user.should_see("Delete selected zones")
 
 
+@pytest.mark.skip(
+    reason="Country selector hidden — API access disabled in favor of CSV upload"
+)
 async def test_us_country_selection(user: User) -> None:
     """Test that selecting USA shows the state selection.
 
@@ -59,6 +63,9 @@ async def test_us_country_selection(user: User) -> None:
     await user.should_see(SELECT_US_STATES_LABEL)
 
 
+@pytest.mark.skip(
+    reason="Country selector hidden — API access disabled in favor of CSV upload"
+)
 async def test_us_states_hidden_on_deselect(user: User) -> None:
     """Test that deselecting USA hides the state selection."""
     await user.open("/")
@@ -72,6 +79,9 @@ async def test_us_states_hidden_on_deselect(user: User) -> None:
     await user.should_not_see(SELECT_US_STATES_LABEL)
 
 
+@pytest.mark.skip(
+    reason="Load Repeaters hidden — API access disabled in favor of CSV upload"
+)
 async def test_validation_no_country_load_repeaters(user: User) -> None:
     """Test that loading repeaters without selecting a country shows a warning."""
     await user.open("/")
@@ -80,6 +90,9 @@ async def test_validation_no_country_load_repeaters(user: User) -> None:
     assert user.notify.contains("Please select at least one country")
 
 
+@pytest.mark.skip(
+    reason="Export no longer validates country selection — API access disabled"
+)
 async def test_validation_no_country_export(user: User) -> None:
     """Test that exporting without selecting a country shows a warning."""
     await user.open("/")
@@ -88,6 +101,9 @@ async def test_validation_no_country_export(user: User) -> None:
     assert user.notify.contains("Please select at least one country")
 
 
+@pytest.mark.skip(
+    reason="Country selector hidden — API access disabled in favor of CSV upload"
+)
 async def test_validation_us_no_states_export(user: User) -> None:
     """Test that exporting with US selected but no states shows a warning."""
     await user.open("/")
@@ -105,11 +121,6 @@ async def test_validation_us_no_states_export(user: User) -> None:
 async def test_validation_no_zones_export(user: User) -> None:
     """Test that exporting without zones shows a warning."""
     await user.open("/")
-    # Select Canada (non-US, no state selection needed)
-    user.find(SELECT_COUNTRIES_LABEL).click()
-    await user.should_see(CANADA_LABEL)
-    user.find(CANADA_LABEL).click()
-    # Export without any zones
     user.find(EXPORT_LABEL).click()
     await asyncio.sleep(0.1)
     assert user.notify.contains("Please add at least one zone")
@@ -118,12 +129,14 @@ async def test_validation_no_zones_export(user: User) -> None:
 async def test_help_dialog_opens_and_closes(user: User) -> None:
     """Test that the help dialog opens and closes via its value property."""
     await user.open("/")
-    # Dialog starts closed
-    dialog = next(iter(user.find(kind=ui.dialog).elements))
-    assert not dialog.value
-    # Open dialog via help FAB
+    # All dialogs start closed
+    dialogs = list(user.find(kind=ui.dialog).elements)
+    assert all(not d.value for d in dialogs)
+    # Open help dialog via help FAB
     user.find(marker="help-btn").click()
-    assert dialog.value
+    open_dialogs = [d for d in dialogs if d.value]
+    assert len(open_dialogs) == 1
+    dialog = open_dialogs[0]
     # Close dialog
     user.find("Close").click()
     assert not dialog.value
