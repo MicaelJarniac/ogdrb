@@ -27,8 +27,8 @@ from ogdrb.i18n import language_manager, t, territory_name
 from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
-    clear_local_repeaters,
     cleanup_repeater_db,
+    clear_local_repeaters,
     create_repeater_db,
     get_compatible_repeaters,
     get_repeaters,
@@ -877,19 +877,6 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     with ui.dialog() as dialog_upload, ui.card():
-        ui.markdown(
-            t(
-                "# Uploading repeater CSVs\n"
-                "To load repeaters from CSV files, click the 'Upload CSVs' "
-                "button and select one or more CSV files exported from "
-                "[RepeaterBook]({url_repeaterbook}).\n"
-                "The app will parse the files, display the repeaters on the "
-                "map, and include them in zone exports.\n"
-                "This is an alternative to fetching repeaters directly from the "
-                "API, and can be useful if you have a custom CSV export or want "
-                "to avoid API rate limits."
-            ).format(url_repeaterbook=ExternalURLs.REPEATERBOOK)
-        )
         ui.upload(
             label=t("Upload repeater CSVs"),
             multiple=True,
@@ -918,7 +905,7 @@ async def index() -> None:  # noqa: C901, PLR0915
                 "1. Select the countries you want to include in your "
                 "codeplug. If you select United States, also choose one "
                 "or more states.\n"
-                '2. Click "Load Repeaters" to cache repeaters and '
+                '2. Click "Upload CSVs" to upload repeater data and '
                 "display markers.\n"
                 "3. Draw circles on the map to define the zones you "
                 "want to include (or manually add to the list below).\n"
