@@ -9,12 +9,16 @@ __all__: tuple[str, ...] = (
     "UniRepeater",
     "build_export_queries",
     "clear_local_repeaters",
+    "cleanup_repeater_db",
+    "create_repeater_db",
     "get_compatible_repeaters",
     "get_repeaters",
     "prepare_local_repeaters",
     "prepare_local_repeaters_from_csv",
 )
 
+import shutil
+import tempfile
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import anyio
@@ -46,14 +50,30 @@ _US_COUNTRY_OBJ = pycountry.countries.lookup("US")
 US_COUNTRY_CODE = _US_COUNTRY_OBJ.alpha_2  # Alpha-2 code for use in comparisons
 US_COUNTRY_NAME = _US_COUNTRY_OBJ.name  # "United States" - for database queries
 
-# Module-level service instances (reused across calls)
+# Shared API client — HTTP response cache is safe (and beneficial) to share.
 _RB_API = RepeaterBookAPI(
     app_name="ogdrb",
     app_version=__version__,
     app_contact="micael@jarniac.dev",
     working_dir=Path(),
 )
-_RB = RepeaterBook(working_dir=Path())
+
+
+def create_repeater_db() -> RepeaterBook:
+    """Create a per-user RepeaterBook with isolated storage.
+
+    Each call returns a fresh instance backed by a unique temp directory,
+    ensuring that concurrent users never share repeater data.
+    """
+    tmpdir = tempfile.mkdtemp(prefix="ogdrb_")
+    rb = RepeaterBook(working_dir=Path(tmpdir))
+    rb.init_db()
+    return rb
+
+
+def cleanup_repeater_db(rb: RepeaterBook) -> None:
+    """Remove a per-user RepeaterBook's storage directory."""
+    shutil.rmtree(str(rb.working_dir), ignore_errors=True)
 
 
 class RepeaterId(NamedTuple):
@@ -177,6 +197,7 @@ def _country_state_filters(
 
 
 def get_compatible_repeaters(
+    rb: RepeaterBook,
     export: ExportQuery | None = None,
     *,
     us_state_ids: frozenset[str] | None = None,
@@ -197,10 +218,11 @@ def get_compatible_repeaters(
             us_state_ids = frozenset()
         where.extend(_country_state_filters(country_names, us_state_ids))
 
-    return list(_RB.query(*where))
+    return list(rb.query(*where))
 
 
 def get_repeaters(
+    rb: RepeaterBook,
     zones: dict[str, Radius],
     *,
     country_names: frozenset[str] = frozenset(),
@@ -226,7 +248,7 @@ def get_repeaters(
             radius.unit,
         )
 
-        queried = _RB.query(
+        queried = rb.query(
             queries.square(radius), *_compatibility_filters(), *extra_filters
         )
         filtered = list(queries.filter_radius(queried, radius))
@@ -237,6 +259,7 @@ def get_repeaters(
 
 
 async def prepare_local_repeaters(
+    rb: RepeaterBook,
     export: ExportQuery,
     *,
     us_state_ids: frozenset[str] = frozenset(),
@@ -277,23 +300,24 @@ async def prepare_local_repeaters(
         for repeater in batch
     }
 
-    _RB.populate(unique_repeaters.values())
+    rb.populate(unique_repeaters.values())
 
     country_names = {country.name for country in export.countries}
     where = _country_state_filters(country_names, us_state_ids)
 
-    return list(_RB.query(*where))
+    return list(rb.query(*where))
 
 
 async def prepare_local_repeaters_from_csv(
+    rb: RepeaterBook,
     csv_content: io.TextIOBase,
 ) -> list[Repeater]:
     """Populate local database from CSV content."""
     repeaters = csv_to_models(csv_content)
-    _RB.populate(repeaters)
-    return list(_RB.query())
+    rb.populate(repeaters)
+    return list(rb.query())
 
 
-async def clear_local_repeaters() -> None:
+async def clear_local_repeaters(rb: RepeaterBook) -> None:
     """Clear all repeaters from local database."""
-    _RB.truncate()
+    rb.truncate()

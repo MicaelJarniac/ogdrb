@@ -28,6 +28,8 @@ from ogdrb.organizer import organize
 from ogdrb.services import (
     US_COUNTRY_CODE,
     clear_local_repeaters,
+    cleanup_repeater_db,
+    create_repeater_db,
     get_compatible_repeaters,
     get_repeaters,
     prepare_local_repeaters,
@@ -534,6 +536,9 @@ class ZoneManager:
 async def index() -> None:  # noqa: C901, PLR0915
     language_manager.quasar_html()
 
+    rb = create_repeater_db()
+    ui.context.client.on_disconnect(lambda: cleanup_repeater_db(rb))
+
     repeater_cluster: Any | None = None
 
     def selected_filters() -> CountrySelection:
@@ -649,12 +654,14 @@ async def index() -> None:  # noqa: C901, PLR0915
 
             # Query 1: ALL repeaters (for map display)
             all_repeaters = await prepare_local_repeaters(
+                rb,
                 export=export_query,
                 us_state_ids=selected_us_states,
             )
 
             # Query 2: COMPATIBLE repeaters only (for determining colors)
             compatible_repeaters = get_compatible_repeaters(
+                rb,
                 export=export_query,
                 us_state_ids=selected_us_states,
             )
@@ -683,10 +690,10 @@ async def index() -> None:  # noqa: C901, PLR0915
             csv_content = io.StringIO(await event.file.text())
 
             # Query 1: ALL repeaters (for map display)
-            all_repeaters = await prepare_local_repeaters_from_csv(csv_content)
+            all_repeaters = await prepare_local_repeaters_from_csv(rb, csv_content)
 
             # Query 2: COMPATIBLE repeaters only (for determining colors)
-            compatible_repeaters = get_compatible_repeaters()
+            compatible_repeaters = get_compatible_repeaters(rb)
 
             # Build set of compatible IDs for O(1) lookup
             compatible_ids = {
@@ -707,7 +714,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         )
 
     async def clear_repeaters() -> None:
-        await clear_local_repeaters()
+        await clear_local_repeaters(rb)
         if repeater_cluster is not None:
             m.run_layer_method(repeater_cluster.id, "clearLayers")  # type: ignore[no-untyped-call]
         ui.notify(t("Cleared repeaters from map."), type="positive")
@@ -739,6 +746,7 @@ async def index() -> None:  # noqa: C901, PLR0915
         try:
             country_names = frozenset(c.name for c in countries)
             repeaters_by_zone = get_repeaters(
+                rb,
                 zones={
                     row["name"]: Radius(
                         origin=LatLon(lat=row["lat"], lon=row["lng"]),
